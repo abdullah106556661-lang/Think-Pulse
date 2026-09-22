@@ -1,0 +1,6 @@
+{
+  "name": "ThinkPulse AI",
+  "description": "Next-generation multimodal AI platform with autonomous chat, image & video studio, voice interactions, document analysis, and integrated AI website and app builder.",
+  "requestFramePermissions": ["microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

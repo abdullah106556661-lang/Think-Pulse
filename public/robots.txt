@@ -1,0 +1,11 @@
+# Robots.txt for ThinkPulse AI & Abdullah 55566 hacker
+# Allow all search engine crawlers to access the public website and SEO brand page
+
+User-agent: *
+Allow: /
+Allow: /abdullah-55566-hacker
+Disallow: /api/admin/
+Disallow: /api/auth/
+
+# Sitemap location
+Sitemap: https://ais-pre-rivk2rxrzf5cssiaoxdp5d-246307193616.asia-east1.run.app/sitemap.xml

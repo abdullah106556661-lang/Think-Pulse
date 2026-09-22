@@ -1,0 +1,232 @@
+{
+  "users": {
+    "abdullah106556661@gmail.com": {
+      "id": "usr_master_admin",
+      "name": "Abdullah (System Administrator)",
+      "email": "abdullah106556661@gmail.com",
+      "passwordHash": "$2b$10$DV1FpPTTBXpG/xucefFipOjsAikdGjzzpLa.rL3Yr4.uhKlVk/xYK",
+      "role": "admin",
+      "status": "active",
+      "isEmailVerified": true,
+      "plan": "premium",
+      "tokensUsed": 0,
+      "monthlyLimit": 999999999,
+      "tokensRemaining": 999999999,
+      "unlimited": true,
+      "unlimitedAccess": true,
+      "createdAt": "2026-09-21T17:32:50.547Z",
+      "updatedAt": "2026-09-21T17:33:31.256Z",
+      "lastLoginAt": "2026-09-21T17:33:31.256Z"
+    },
+    "demo@thinkpulse.ai": {
+      "id": "usr_demo_account",
+      "name": "Alex Rivera (Demo Account)",
+      "email": "demo@thinkpulse.ai",
+      "passwordHash": "$2b$10$JgUxYwVXrl9nwABBeM/2Gu4wvOafuIbFm.nYwNFYkpKPRFUha/89m",
+      "role": "user",
+      "status": "active",
+      "isEmailVerified": true,
+      "plan": "pro",
+      "tokensUsed": 12500,
+      "monthlyLimit": 1000000,
+      "tokensRemaining": 987500,
+      "createdAt": "2026-09-21T17:32:50.548Z",
+      "updatedAt": "2026-09-21T17:32:50.548Z"
+    },
+    "testuser@example.com": {
+      "name": "Test User",
+      "email": "testuser@example.com",
+      "passwordHash": "$2b$10$CK0nbDP805HHs0EAbxgbIezBqwtouCzW8cgrGyCvvvXMhm3U06Yqe",
+      "role": "user",
+      "status": "active",
+      "isEmailVerified": false,
+      "plan": "free",
+      "tokensUsed": 0,
+      "monthlyLimit": 100000,
+      "tokensRemaining": 100000,
+      "unlimited": false,
+      "unlimitedAccess": false,
+      "id": "usr_1790012018427_zz181",
+      "createdAt": "2026-09-21T17:33:38.427Z",
+      "updatedAt": "2026-09-21T17:33:38.427Z"
+    }
+  },
+  "sessions": {
+    "tp_adm_1790012011256_uusg9wsrsn": {
+      "token": "tp_adm_1790012011256_uusg9wsrsn",
+      "userId": "usr_master_admin",
+      "email": "abdullah106556661@gmail.com",
+      "role": "admin",
+      "createdAt": "2026-09-21T17:33:31.256Z",
+      "expiresAt": "2026-09-28T17:33:31.256Z",
+      "userAgent": "curl/7.88.1",
+      "ip": "127.0.0.1"
+    },
+    "tp_usr_1790012018428_18zbj7q36w": {
+      "token": "tp_usr_1790012018428_18zbj7q36w",
+      "userId": "usr_1790012018427_zz181",
+      "email": "testuser@example.com",
+      "role": "user",
+      "createdAt": "2026-09-21T17:33:38.428Z",
+      "expiresAt": "2026-10-21T17:33:38.428Z",
+      "userAgent": "curl/7.88.1",
+      "ip": "127.0.0.1"
+    }
+  },
+  "plans": {
+    "free": {
+      "id": "free",
+      "name": "Free Starter",
+      "pricePkr": 0,
+      "priceUsd": 0,
+      "billingPeriod": "Forever Free",
+      "features": [
+        "Standard ThinkPulse Flash Model",
+        "Code Generation & Debugging",
+        "Standard Response Latency",
+        "100,000 Monthly AI Tokens",
+        "Export Conversations (JSON / MD)"
+      ],
+      "tokenLimit": 100000,
+      "status": "active",
+      "isDefault": true,
+      "description": "Ideal for everyday queries, students, and light exploration."
+    },
+    "basic": {
+      "id": "basic",
+      "name": "Basic Plan",
+      "pricePkr": 1999,
+      "priceUsd": 9,
+      "billingPeriod": "Monthly",
+      "features": [
+        "ThinkPulse Flash + Lite Models",
+        "300,000 Monthly AI Tokens",
+        "Image Studio High-Definition Visuals",
+        "App & Website Builders (Standard)",
+        "Community Discord / Email Support"
+      ],
+      "tokenLimit": 300000,
+      "status": "active",
+      "description": "Essential toolkit for creative hobbyists and junior developers."
+    },
+    "pro": {
+      "id": "pro",
+      "name": "Pro Strategist",
+      "pricePkr": 4999,
+      "priceUsd": 29,
+      "billingPeriod": "Monthly",
+      "features": [
+        "Full Multimodal Reasoning (Deep Thinking)",
+        "1,000,000 Monthly AI Tokens",
+        "Sport Team AI Strategy & Lineup Engine",
+        "Video Studio Clip Generation",
+        "Document AI & PDF Analysis",
+        "Priority Server Pipeline & Faster Speeds"
+      ],
+      "tokenLimit": 1000000,
+      "status": "active",
+      "isPopular": true,
+      "description": "Designed for professionals, tactical sports analysts, and creators."
+    },
+    "premium": {
+      "id": "premium",
+      "name": "Enterprise Ultra",
+      "pricePkr": 14999,
+      "priceUsd": 79,
+      "billingPeriod": "Monthly",
+      "features": [
+        "Unlimited Multimodal Generation",
+        "Unlimited Monthly AI Tokens",
+        "Interactive Live Voice Call (Two-way)",
+        "Dedicated High-Priority Compute Node",
+        "Full White-label Project Exports",
+        "VIP 24/7 Dedicated Administrator Support"
+      ],
+      "tokenLimit": 999999999,
+      "status": "active",
+      "description": "Complete unrestricted power for enterprises and high-scale production."
+    }
+  },
+  "subscriptions": {},
+  "payments": [
+    {
+      "id": "JC-892401",
+      "userId": "usr_demo_account",
+      "userEmail": "client.karachi@gmail.com",
+      "userName": "Zubair Khan",
+      "planId": "pro",
+      "planName": "Pro Strategist",
+      "amountPkr": 4999,
+      "jazzCashNumber": "03176901963",
+      "senderMobile": "0300-9876543",
+      "transactionId": "TXN-JC-982142",
+      "status": "approved",
+      "adminNote": "Verified with JazzCash SMS receipt.",
+      "submittedAt": "2026-09-20T17:32:50.548Z",
+      "reviewedAt": "2026-09-20T18:32:50.548Z",
+      "reviewedBy": "abdullah106556661@gmail.com"
+    }
+  ],
+  "auditLogs": [
+    {
+      "actorEmail": "testuser@example.com",
+      "action": "USER_REGISTERED",
+      "status": "success",
+      "details": "New account created with plan: free",
+      "ip": "127.0.0.1",
+      "id": "audit_1790012018428_txuw",
+      "timestamp": "2026-09-21T17:33:38.428Z"
+    },
+    {
+      "actorEmail": "abdullah106556661@gmail.com",
+      "action": "USER_LOGIN",
+      "status": "success",
+      "details": "User logged in successfully",
+      "ip": "127.0.0.1",
+      "id": "audit_1790012011257_477r",
+      "timestamp": "2026-09-21T17:33:31.257Z"
+    },
+    {
+      "id": "audit_init",
+      "timestamp": "2026-09-21T17:32:50.548Z",
+      "actorEmail": "system",
+      "action": "SYSTEM_INITIALIZATION",
+      "status": "success",
+      "details": "Secure persistent database initialized with bcrypt encryption."
+    }
+  ],
+  "notifications": [
+    {
+      "userId": "usr_1790012018427_zz181",
+      "title": "👋 Welcome to ThinkPulse AI",
+      "message": "Your account has been created successfully. Explore our AI studios, chat models, and pricing plans.",
+      "type": "success",
+      "id": "notif_1790012018428_r61j",
+      "read": false,
+      "createdAt": "2026-09-21T17:33:38.428Z"
+    }
+  ],
+  "siteSettings": {
+    "maintenanceMode": false,
+    "allowRegistrations": true,
+    "officialJazzCashNumber": "03176901963",
+    "officialJazzCashTitle": "Abdullah / ThinkPulse AI",
+    "announcement": {
+      "enabled": true,
+      "text": "Welcome to ThinkPulse AI 2.0! Upgrade via JazzCash (03176901963) for instant verification.",
+      "type": "info"
+    },
+    "toolAccess": {
+      "chat": true,
+      "image": true,
+      "video": true,
+      "sport": true,
+      "website": true,
+      "app": true,
+      "voice": true,
+      "docs": true
+    }
+  },
+  "systemErrors": [],
+  "loginAttempts": {}
+}
