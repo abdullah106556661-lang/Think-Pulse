@@ -242,8 +242,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Chat request failed');
+      let data: any = null;
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await res.json().catch(() => null);
+      } else {
+        const rawText = await res.text().catch(() => '');
+        if (!res.ok) {
+          throw new Error(
+            res.status === 502 || res.status === 503 || res.status === 504
+              ? 'The AI server is currently initializing or updating. Please try again in a few moments.'
+              : rawText?.slice(0, 150) || `Request failed with status code ${res.status}`
+          );
+        }
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error || `Chat request failed with status ${res.status}`);
+      }
+
+      if (!data || !data.text) {
+        throw new Error('Received an empty response from the server. Please try again.');
+      }
 
       const botMsg: ChatMessage = {
         id: `msg_a_${Date.now()}`,
@@ -282,10 +302,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
         // User pressed stop
         return;
       }
+      let cleanErrorMsg = err?.message || 'The service encountered an error. Please try again.';
+      if (cleanErrorMsg.includes('is not valid JSON') || cleanErrorMsg.includes('Unexpected token')) {
+        cleanErrorMsg = 'The AI service is currently warming up or momentarily busy. Please try again in a few seconds.';
+      }
+
       const errMsg: ChatMessage = {
         id: `msg_err_${Date.now()}`,
         role: 'assistant',
-        content: `⚠️ **Notice:** ${err.message || 'The service encountered an error. Please try again.'}`,
+        content: `⚠️ **Notice:** ${cleanErrorMsg}`,
         timestamp: new Date().toISOString(),
       };
 

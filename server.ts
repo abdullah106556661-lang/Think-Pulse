@@ -1,6 +1,6 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
@@ -9,9 +9,6 @@ import { GoogleGenAI, ThinkingLevel, Modality, GenerateVideosOperation } from '@
 import { db, MASTER_ADMIN_EMAIL, OFFICIAL_JAZZCASH_NUMBER, OFFICIAL_JAZZCASH_TITLE, DbUser, DbPricingPlan } from './server/db';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
@@ -2992,7 +2989,10 @@ app.get('/abdullah-55566-hacker', (req, res, next) => {
 // 12. VITE MIDDLEWARE (DEV) & STATIC FALLBACK (PROD)
 // -------------------------------------------------------------
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
+  const isDev = process.env.npm_lifecycle_event === 'dev' || process.env.NODE_ENV === 'development';
+  const isProduction = !isDev && (process.env.NODE_ENV === 'production' || fs.existsSync(path.join(process.cwd(), 'dist', 'index.html')));
+
+  if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -3002,12 +3002,29 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: `API endpoint ${req.method} ${req.path} not found` });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
+  // Global API error handler ensuring JSON responses
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error('Unhandled server error:', err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    if (req.path && req.path.startsWith('/api/')) {
+      return res.status(err.status || 500).json({
+        error: err?.message || 'Internal server error',
+      });
+    }
+    res.status(500).send('Internal Server Error');
+  });
+
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[ThinkPulse AI] Engine active on port ${PORT}`);
+    console.log(`[ThinkPulse AI] Engine active on port ${PORT} (${isProduction ? 'production' : 'development'} mode)`);
   });
 }
 
