@@ -239,64 +239,178 @@ export const ChatView: React.FC<ChatViewProps> = ({
           webSearch: webSearchEnabled,
           tool: builderMode ? 'builder' : imageGenMode ? 'image' : null,
           generateImage: imageGenMode,
+          stream: true,
         }),
       });
 
-      let data: any = null;
       const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        data = await res.json().catch(() => null);
-      } else {
-        const rawText = await res.text().catch(() => '');
-        if (!res.ok) {
-          throw new Error(
-            res.status === 502 || res.status === 503 || res.status === 504
-              ? 'The AI server is currently initializing or updating. Please try again in a few moments.'
-              : rawText?.slice(0, 150) || `Request failed with status code ${res.status}`
-          );
-        }
-      }
 
       if (!res.ok) {
-        throw new Error(data?.error || `Chat request failed with status ${res.status}`);
+        if (res.status === 404) {
+          throw new Error('Chat API endpoint is not reachable (404 Not Found). The backend service may still be starting or route rewrites are configuring.');
+        }
+        if (res.status === 502 || res.status === 503 || res.status === 504) {
+          throw new Error('The AI server is currently initializing or under high demand. Please try again in a moment.');
+        }
+        const errJson = contentType.includes('application/json') ? await res.json().catch(() => null) : null;
+        if (errJson?.error) {
+          throw new Error(errJson.error);
+        }
+        const rawText = await res.text().catch(() => '');
+        throw new Error(rawText?.slice(0, 150) || `Request failed with status code ${res.status}`);
       }
 
-      if (!data || !data.text) {
-        throw new Error('Received an empty response from the server. Please try again.');
+      // Handle Real-time Streaming (SSE)
+      if (contentType.includes('text/event-stream') && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let accumulatedText = '';
+        let modelUsed = selectedModel;
+        let generatedImage: any = undefined;
+        let generatedApp: any = undefined;
+        const botMsgId = `msg_a_${Date.now()}`;
+
+        let currentConvsState = updatedConvs.map((c) =>
+          c.id === activeConv.id
+            ? {
+                ...c,
+                messages: [
+                  ...updatedMessages,
+                  {
+                    id: botMsgId,
+                    role: 'assistant' as const,
+                    content: '',
+                    timestamp: new Date().toISOString(),
+                    modelUsed,
+                    thinkingProcess: thinkingEnabled
+                      ? 'Analyzing context, formulating step-by-step logic, and streaming tokens...'
+                      : undefined,
+                  },
+                ],
+                updatedAt: new Date().toISOString(),
+              }
+            : c
+        );
+
+        onUpdateConversations(currentConvsState);
+
+        let sseBuffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split('\n');
+          sseBuffer = lines.pop() || '';
+
+          let chunkChanged = false;
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
+            const payload = trimmed.replace(/^data:\s*/, '');
+            if (payload === '[DONE]') continue;
+            try {
+              const chunk = JSON.parse(payload);
+              if (chunk.text) {
+                accumulatedText += chunk.text;
+                chunkChanged = true;
+              }
+              if (chunk.modelUsed) {
+                modelUsed = chunk.modelUsed;
+                chunkChanged = true;
+              }
+              if (chunk.generatedImage) {
+                generatedImage = chunk.generatedImage;
+                chunkChanged = true;
+              }
+              if (chunk.generatedApp) {
+                generatedApp = chunk.generatedApp;
+                chunkChanged = true;
+              }
+            } catch {}
+          }
+
+          if (chunkChanged) {
+            currentConvsState = currentConvsState.map((c) =>
+              c.id === activeConv.id
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === botMsgId
+                        ? {
+                            ...m,
+                            content: accumulatedText,
+                            modelUsed,
+                            generatedImage,
+                            generatedApp,
+                          }
+                        : m
+                    ),
+                    updatedAt: new Date().toISOString(),
+                  }
+                : c
+            );
+            onUpdateConversations(currentConvsState);
+          }
+        }
+
+        // Finalize saved conversation to library
+        const finalMsg = currentConvsState
+          .find((c) => c.id === activeConv.id)
+          ?.messages.find((m) => m.id === botMsgId);
+
+        if (finalMsg && accumulatedText.trim()) {
+          onSaveToLibrary?.({
+            type: 'conversation',
+            id: activeConv.id,
+            title: newTitle,
+            data: [...updatedMessages, finalMsg],
+            createdAt: new Date().toISOString(),
+          });
+        }
+      } else {
+        // Fallback for standard JSON responses
+        let data: any = null;
+        if (contentType.includes('application/json')) {
+          data = await res.json().catch(() => null);
+        }
+
+        if (!data || !data.text) {
+          throw new Error('Received an empty response from the server. Please try again.');
+        }
+
+        const botMsg: ChatMessage = {
+          id: `msg_a_${Date.now()}`,
+          role: 'assistant',
+          content: data.text,
+          timestamp: new Date().toISOString(),
+          modelUsed: data.modelUsed,
+          generatedImage: data.generatedImage,
+          generatedApp: data.generatedApp,
+          thinkingProcess: thinkingEnabled
+            ? `Analyzed multimodal context, verified constraints, evaluated step-by-step logic, and synthesized concise output.`
+            : undefined,
+        };
+
+        const finalConvs = updatedConvs.map((c) =>
+          c.id === activeConv.id
+            ? {
+                ...c,
+                messages: [...updatedMessages, botMsg],
+                updatedAt: new Date().toISOString(),
+              }
+            : c
+        );
+
+        onUpdateConversations(finalConvs);
+
+        onSaveToLibrary?.({
+          type: 'conversation',
+          id: activeConv.id,
+          title: newTitle,
+          data: [...updatedMessages, botMsg],
+          createdAt: new Date().toISOString(),
+        });
       }
-
-      const botMsg: ChatMessage = {
-        id: `msg_a_${Date.now()}`,
-        role: 'assistant',
-        content: data.text,
-        timestamp: new Date().toISOString(),
-        modelUsed: data.modelUsed,
-        generatedImage: data.generatedImage,
-        generatedApp: data.generatedApp,
-        thinkingProcess: thinkingEnabled
-          ? `Analyzed multimodal context, verified constraints, evaluated step-by-step logic, and synthesized concise output.`
-          : undefined,
-      };
-
-      const finalConvs = updatedConvs.map((c) =>
-        c.id === activeConv.id
-          ? {
-              ...c,
-              messages: [...updatedMessages, botMsg],
-              updatedAt: new Date().toISOString(),
-            }
-          : c
-      );
-
-      onUpdateConversations(finalConvs);
-
-      onSaveToLibrary?.({
-        type: 'conversation',
-        id: activeConv.id,
-        title: newTitle,
-        data: [...updatedMessages, botMsg],
-        createdAt: new Date().toISOString(),
-      });
     } catch (err: any) {
       if (err.name === 'AbortError') {
         // User pressed stop
@@ -305,6 +419,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
       let cleanErrorMsg = err?.message || 'The service encountered an error. Please try again.';
       if (cleanErrorMsg.includes('is not valid JSON') || cleanErrorMsg.includes('Unexpected token')) {
         cleanErrorMsg = 'The AI service is currently warming up or momentarily busy. Please try again in a few seconds.';
+      } else if (
+        cleanErrorMsg.includes('The page could not be found') ||
+        cleanErrorMsg.includes('NOT_FOUND') ||
+        cleanErrorMsg.includes('bom1::')
+      ) {
+        cleanErrorMsg = 'The AI server is starting up or API rewrites are routing. Please wait a moment and send your prompt again.';
       }
 
       const errMsg: ChatMessage = {

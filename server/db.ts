@@ -135,6 +135,63 @@ export interface DbSystemError {
   stack?: string;
 }
 
+export interface DbProject {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  type: 'website' | 'app';
+  title: string;
+  prompt: string;
+  description: string;
+  category?: string;
+  theme?: any;
+  files: {
+    html: string;
+    css?: string;
+    js?: string;
+  };
+  isDeployed?: boolean;
+  deploySlug?: string;
+  liveUrl?: string;
+  deployedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  revisions?: any[];
+}
+
+export interface DbDomainRequest {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  domainName: string;
+  tld: string;
+  years: number;
+  pricePkr: number;
+  priceUsd: number;
+  status: 'pending' | 'approved' | 'rejected';
+  paymentMethod: string;
+  senderMobile?: string;
+  transactionId?: string;
+  proofImageBase64?: string;
+  notes?: string;
+  adminNote?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
+export interface DbGenerationRecord {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  tool: 'chat' | 'image' | 'video' | 'website' | 'app' | 'doc' | 'sport' | 'voice';
+  prompt: string;
+  status: 'success' | 'failed';
+  outputPreview?: string;
+  createdAt: string;
+}
+
 interface DatabaseSchema {
   users: Record<string, DbUser>; // keyed by email (lowercase)
   sessions: Record<string, DbSession>; // keyed by token
@@ -146,6 +203,9 @@ interface DatabaseSchema {
   siteSettings: DbSiteSettings;
   systemErrors: DbSystemError[];
   loginAttempts: Record<string, { count: number; lockedUntil?: number }>;
+  projects: Record<string, DbProject>;
+  domains: DbDomainRequest[];
+  generations: DbGenerationRecord[];
 }
 
 const DB_DIR = path.join(process.cwd(), 'data');
@@ -345,6 +405,9 @@ class PersistentDatabase {
       },
       systemErrors: [],
       loginAttempts: {},
+      projects: {},
+      domains: [],
+      generations: [],
     };
   }
 
@@ -363,6 +426,9 @@ class PersistentDatabase {
           ...parsed,
           siteSettings: { ...this.getDefaultSchema().siteSettings, ...(parsed.siteSettings || {}) },
           plans: { ...this.getDefaultSchema().plans, ...(parsed.plans || {}) },
+          projects: parsed.projects || {},
+          domains: parsed.domains || [],
+          generations: parsed.generations || [],
         };
       } else {
         this.save();
@@ -800,6 +866,209 @@ class PersistentDatabase {
   public clearSystemErrors(): void {
     this.data.systemErrors = [];
     this.save();
+  }
+
+  // --- Projects & Deployments ---
+  public saveProject(project: Omit<DbProject, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): DbProject {
+    const now = new Date().toISOString();
+    const id = project.id || `proj_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const existing = this.data.projects[id];
+
+    const saved: DbProject = {
+      ...project,
+      id,
+      createdAt: existing ? existing.createdAt : now,
+      updatedAt: now,
+      revisions: [
+        ...(existing?.revisions || []),
+        { timestamp: now, prompt: project.prompt || 'Save Project' }
+      ]
+    };
+
+    this.data.projects[id] = saved;
+    this.save();
+    return saved;
+  }
+
+  public getProject(id: string): DbProject | null {
+    return this.data.projects[id] || null;
+  }
+
+  public getProjectBySlug(slug: string): DbProject | null {
+    return Object.values(this.data.projects).find(
+      (p) => p.deploySlug === slug || p.id === slug
+    ) || null;
+  }
+
+  public getUserProjects(userId: string): DbProject[] {
+    return Object.values(this.data.projects)
+      .filter((p) => p.userId === userId)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+
+  public getAllProjects(): DbProject[] {
+    return Object.values(this.data.projects).sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+  }
+
+  public deleteProject(id: string, userId?: string): boolean {
+    const proj = this.data.projects[id];
+    if (!proj) return false;
+    if (userId && proj.userId !== userId) return false;
+    delete this.data.projects[id];
+    this.save();
+    return true;
+  }
+
+  public deployProject(id: string, hostUrl: string, userId?: string): { success: boolean; liveUrl?: string; slug?: string; error?: string } {
+    const proj = this.data.projects[id];
+    if (!proj) return { success: false, error: 'Project not found' };
+    if (userId && proj.userId !== userId) return { success: false, error: 'Unauthorized to deploy this project' };
+
+    // Generate clean semantic slug
+    const cleanTitle = (proj.title || 'site')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 24);
+    const shortHash = Math.random().toString(36).substring(2, 6);
+    const slug = proj.deploySlug || `${cleanTitle}-${shortHash}`;
+    
+    // Determine route prefix based on type
+    const prefix = proj.type === 'app' ? 'app' : 'site';
+    const liveUrl = `${hostUrl}/${prefix}/${slug}`;
+
+    proj.isDeployed = true;
+    proj.deploySlug = slug;
+    proj.liveUrl = liveUrl;
+    proj.deployedAt = new Date().toISOString();
+    proj.updatedAt = new Date().toISOString();
+
+    this.save();
+
+    // Log deployment
+    this.addAuditLog({
+      actorEmail: proj.userEmail || 'user',
+      action: 'DEPLOY_PROJECT',
+      target: liveUrl,
+      status: 'success',
+      details: `Project "${proj.title}" deployed successfully to ${liveUrl}`,
+    });
+
+    return { success: true, liveUrl, slug };
+  }
+
+  // --- Domain Requests ---
+  public createDomainRequest(req: Omit<DbDomainRequest, 'id' | 'status' | 'submittedAt'>): DbDomainRequest {
+    const id = `dom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newReq: DbDomainRequest = {
+      ...req,
+      id,
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+    };
+
+    this.data.domains.unshift(newReq);
+
+    // Also create a linked payment request so it appears in the Payments queue
+    this.data.payments.unshift({
+      id: `PAY-${id.toUpperCase()}`,
+      userId: req.userId,
+      userEmail: req.userEmail,
+      userName: req.userName,
+      planId: `domain_${req.tld}`,
+      planName: `Domain Registration (${req.domainName})`,
+      amountPkr: req.pricePkr,
+      jazzCashNumber: OFFICIAL_JAZZCASH_NUMBER,
+      senderMobile: req.senderMobile || 'N/A',
+      transactionId: req.transactionId || 'PENDING_DOM',
+      proofImageBase64: req.proofImageBase64,
+      status: 'pending',
+      submittedAt: new Date().toISOString(),
+      adminNote: `Domain registration request for ${req.domainName} (${req.years} year)`,
+    });
+
+    this.addNotification({
+      userId: req.userId,
+      title: '🌐 Domain Purchase Request Submitted',
+      message: `Your domain purchase request for ${req.domainName} (PKR ${req.pricePkr.toLocaleString()}) has been submitted. Status: PENDING Admin review.`,
+      type: 'info',
+    });
+
+    this.addAuditLog({
+      actorEmail: req.userEmail,
+      action: 'DOMAIN_PURCHASE_REQUEST',
+      target: req.domainName,
+      status: 'info',
+      details: `User requested domain "${req.domainName}" for PKR ${req.pricePkr}`,
+    });
+
+    this.save();
+    return newReq;
+  }
+
+  public getUserDomainRequests(userId: string): DbDomainRequest[] {
+    return this.data.domains.filter((d) => d.userId === userId);
+  }
+
+  public getAllDomainRequests(): DbDomainRequest[] {
+    return [...this.data.domains];
+  }
+
+  public reviewDomainRequest(id: string, status: 'approved' | 'rejected', adminNote?: string, adminEmail?: string): DbDomainRequest | null {
+    const dom = this.data.domains.find((d) => d.id === id);
+    if (!dom) return null;
+
+    dom.status = status;
+    dom.reviewedAt = new Date().toISOString();
+    dom.reviewedBy = adminEmail || 'Super Admin';
+    if (adminNote) dom.adminNote = adminNote;
+
+    // Send user notification
+    this.addNotification({
+      userId: dom.userId,
+      title: status === 'approved' ? '🎉 Domain Request Approved!' : '⚠️ Domain Request Update',
+      message: status === 'approved'
+        ? `Your domain request for ${dom.domainName} has been approved by admin! DNS provisioning is active.`
+        : `Your domain request for ${dom.domainName} was rejected.${adminNote ? ` Note: ${adminNote}` : ''}`,
+      type: status === 'approved' ? 'success' : 'warning',
+    });
+
+    this.addAuditLog({
+      actorEmail: adminEmail || 'admin',
+      action: status === 'approved' ? 'DOMAIN_APPROVE' : 'DOMAIN_REJECT',
+      target: dom.domainName,
+      status: status === 'approved' ? 'success' : 'warning',
+      details: `Admin ${status} domain request for ${dom.domainName}. Note: ${adminNote || 'None'}`,
+    });
+
+    this.save();
+    return dom;
+  }
+
+  // --- Generation Activity Records ---
+  public addGenerationRecord(record: Omit<DbGenerationRecord, 'id' | 'createdAt'>): DbGenerationRecord {
+    const rec: DbGenerationRecord = {
+      ...record,
+      id: `gen_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      createdAt: new Date().toISOString(),
+    };
+    this.data.generations.unshift(rec);
+    if (this.data.generations.length > 500) {
+      this.data.generations = this.data.generations.slice(0, 500);
+    }
+    this.save();
+    return rec;
+  }
+
+  public getUserGenerations(userId: string, limit = 50): DbGenerationRecord[] {
+    return this.data.generations.filter((g) => g.userId === userId).slice(0, limit);
+  }
+
+  public getAllGenerations(limit = 100): DbGenerationRecord[] {
+    return this.data.generations.slice(0, limit);
   }
 }
 

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { GeneratedWebsiteProject } from '../types';
 import JSZip from 'jszip';
 import { ThinkPulseLogo } from './ThinkPulseLogo';
+import { GenerationIndicator } from './GenerationIndicator';
 import {
   Globe,
   Sparkles,
@@ -21,6 +22,11 @@ import {
   RefreshCw,
   Palette,
   AlertCircle,
+  Rocket,
+  ExternalLink,
+  Save,
+  Trash2,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface WebsiteBuilderProps {
@@ -42,6 +48,10 @@ export const WebsiteBuilderView: React.FC<WebsiteBuilderProps> = ({
   const [deviceViewport, setDeviceViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [codeTab, setCodeTab] = useState<'html' | 'css' | 'js'>('html');
   const [error, setError] = useState<string | null>(null);
+  const [deploying, setDeploying] = useState(false);
+  const [deployProgress, setDeployProgress] = useState('');
+  const [liveUrl, setLiveUrl] = useState<string | null>(initialProject?.liveUrl || null);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
 
   // Default initial project if none provided
   const [project, setProject] = useState<GeneratedWebsiteProject>(
@@ -310,6 +320,110 @@ Upload these files to Vercel, Netlify, Cloudflare Pages, or any static web hosti
     window.open(url, '_blank');
   };
 
+  // Deploy project to live Edge URL
+  const handleDeploy = async () => {
+    setDeploying(true);
+    setError(null);
+    setDeployProgress('Bundling responsive HTML, Tailwind, and JS modules...');
+
+    try {
+      await new Promise((r) => setTimeout(r, 500));
+      setDeployProgress('Allocating Edge server container & domain router...');
+
+      const token = localStorage.getItem('thinkpulse_token') || '';
+      const res = await fetch('/api/deploy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          id: project.id,
+          title: project.title,
+          prompt: project.prompt,
+          description: project.description,
+          category: project.category,
+          type: 'website',
+          files: project.files,
+          theme: project.theme,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Deployment failed');
+
+      setDeployProgress('Configuring Global Edge SSL & CDN routes...');
+      await new Promise((r) => setTimeout(r, 400));
+
+      setLiveUrl(data.liveUrl);
+      const updatedProject: GeneratedWebsiteProject = {
+        ...project,
+        isDeployed: true,
+        liveUrl: data.liveUrl,
+        deploySlug: data.slug,
+      };
+      setProject(updatedProject);
+      onSaveToLibrary?.(updatedProject);
+      setSavedNotice(`Published live! Available at ${data.liveUrl}`);
+      setTimeout(() => setSavedNotice(null), 8000);
+    } catch (err: any) {
+      setError(err.message || 'Deployment pipeline encountered an error. Please retry.');
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  // Save Project to backend and library
+  const handleSaveProject = async () => {
+    try {
+      const token = localStorage.getItem('thinkpulse_token') || '';
+      const res = await fetch('/api/projects/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          id: project.id,
+          title: project.title,
+          prompt: project.prompt,
+          description: project.description,
+          category: project.category,
+          type: 'website',
+          files: project.files,
+          theme: project.theme,
+        }),
+      });
+      if (res.ok) {
+        onSaveToLibrary?.(project);
+        setSavedNotice('Project successfully saved to your dashboard!');
+        setTimeout(() => setSavedNotice(null), 3500);
+      }
+    } catch {
+      onSaveToLibrary?.(project);
+      setSavedNotice('Project saved to local library.');
+      setTimeout(() => setSavedNotice(null), 3500);
+    }
+  };
+
+  // Delete project
+  const handleDeleteProject = async () => {
+    if (!window.confirm('Are you sure you want to delete this website project?')) return;
+    try {
+      const token = localStorage.getItem('thinkpulse_token') || '';
+      await fetch(`/api/projects/${encodeURIComponent(project.id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      setLiveUrl(null);
+      setSavedNotice('Project deleted.');
+      setTimeout(() => setSavedNotice(null), 3000);
+    } catch {
+      setSavedNotice('Project reset.');
+      setTimeout(() => setSavedNotice(null), 3000);
+    }
+  };
+
   const sampleIdeas = [
     { label: 'French Artisan Bakery with Menu & Catering', cat: 'restaurant' },
     { label: 'Minimalist Architect Portfolio & Case Studies', cat: 'portfolio' },
@@ -405,6 +519,15 @@ Upload these files to Vercel, Netlify, Cloudflare Pages, or any static web hosti
 
           {/* Action buttons */}
           <button
+            onClick={handleSaveProject}
+            className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            title="Save Project to Dashboard"
+          >
+            <Save className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Save</span>
+          </button>
+
+          <button
             onClick={handleCopyHtml}
             className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-colors"
             title="Copy Standalone HTML"
@@ -415,20 +538,97 @@ Upload these files to Vercel, Netlify, Cloudflare Pages, or any static web hosti
           <button
             onClick={handleOpenFullscreen}
             className="p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-colors"
-            title="Open in new window"
+            title="Open preview in new tab"
           >
             <Maximize2 className="w-4 h-4" />
           </button>
 
           <button
             onClick={handleExportZip}
-            className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+            title="Download ZIP Bundle"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export ZIP</span>
+            <span className="hidden sm:inline">ZIP</span>
+          </button>
+
+          {/* Publish / Deploy Button */}
+          <button
+            onClick={handleDeploy}
+            disabled={deploying}
+            className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-cyan-500/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            title="Publish website live to global CDN"
+          >
+            {deploying ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Deploying...</span>
+              </>
+            ) : (
+              <>
+                <Rocket className="w-3.5 h-3.5" />
+                <span>Publish / Deploy</span>
+              </>
+            )}
           </button>
         </div>
       </div>
+
+      {/* Deployment & Live URL Banner */}
+      {liveUrl && (
+        <div className="bg-emerald-950/80 border-b border-emerald-500/30 px-6 py-2.5 text-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-emerald-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span className="font-semibold">Live Site Published:</span>
+            <a
+              href={liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-cyan-300 underline hover:text-cyan-200 flex items-center gap-1"
+            >
+              <span>{liveUrl}</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(liveUrl);
+                setSavedNotice('Live URL copied to clipboard!');
+                setTimeout(() => setSavedNotice(null), 2500);
+              }}
+              className="px-2.5 py-1 rounded-md bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+            >
+              <Copy className="w-3 h-3" />
+              <span>Copy URL</span>
+            </button>
+            <a
+              href={liveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1 rounded-md bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-bold flex items-center gap-1 transition-all"
+            >
+              <span>Open Live Site</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Deploying Progress Notice */}
+      {deploying && (
+        <div className="bg-cyan-950/80 border-b border-cyan-500/30 px-6 py-3 flex items-center justify-center">
+          <GenerationIndicator status="Deploying to Global Edge..." subtext={deployProgress} size="sm" />
+        </div>
+      )}
+
+      {/* Saved Notification */}
+      {savedNotice && (
+        <div className="bg-cyan-950/90 border-b border-cyan-500/40 px-6 py-2 text-xs text-cyan-200 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span>{savedNotice}</span>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-950/70 border-b border-red-500/30 px-6 py-2 text-xs text-red-300 flex items-center gap-2">

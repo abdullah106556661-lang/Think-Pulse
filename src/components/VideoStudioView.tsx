@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedVideoItem } from '../types';
 import { ThinkPulseLogo } from './ThinkPulseLogo';
+import { GenerationIndicator } from './GenerationIndicator';
 import {
   Video,
   Sparkles,
@@ -14,6 +15,11 @@ import {
   AlertCircle,
   Eye,
   CheckCircle,
+  Upload,
+  X,
+  Trash2,
+  Bookmark,
+  Share2,
 } from 'lucide-react';
 
 interface VideoStudioProps {
@@ -25,35 +31,66 @@ export const VideoStudioView: React.FC<VideoStudioProps> = ({ onSaveToLibrary })
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16'>('16:9');
   const [duration, setDuration] = useState<number>(5);
-  const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [resolution, setResolution] = useState<'720p' | '1080p'>('720p');
 
-  const [videos, setVideos] = useState<GeneratedVideoItem[]>([
-    {
-      id: 'vid_demo_1',
-      prompt: 'Cinematic drone shot flying through futuristic neon spires of Neo-Tokyo at sunset, volumetric fog, photorealistic',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      aspectRatio: '16:9',
-      duration: 15,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'vid_demo_2',
-      prompt: 'Vertical 9:16 TikTok reel showing crystalline fluid physics and dynamic light ripples',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      aspectRatio: '9:16',
-      duration: 15,
-      createdAt: new Date().toISOString(),
-    },
-  ]);
+  // Image-to-video reference
+  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceImageName, setReferenceImageName] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>('Initiating neural video pipeline (Veo Model)...');
+  const [error, setError] = useState<string | null>(null);
+  const [retryablePrompt, setRetryablePrompt] = useState<string | null>(null);
+
+  const [videos, setVideos] = useState<GeneratedVideoItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('thinkpulse_videos');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const pollIntervalRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
+
+  const saveVideosList = (list: GeneratedVideoItem[]) => {
+    setVideos(list);
+    try {
+      localStorage.setItem('thinkpulse_videos', JSON.stringify(list));
+    } catch {}
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Reference image must be less than 8MB.');
+      return;
+    }
+    setReferenceImageName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReferenceImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!prompt.trim() && !referenceImage) {
+      setError('Please provide a video prompt or upload a reference image.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
+    setRetryablePrompt(prompt);
     setStatusMessage('Initiating neural video pipeline (Veo Model)...');
 
     try {
@@ -61,27 +98,31 @@ export const VideoStudioView: React.FC<VideoStudioProps> = ({ onSaveToLibrary })
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt,
+          prompt: prompt.trim(),
           aspectRatio,
+          resolution,
           duration,
+          referenceImage: referenceImage || undefined,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Video synthesis request failed');
+      if (!res.ok) {
+        throw new Error(data.error || 'Video synthesis request failed');
+      }
 
       if (data.status === 'completed' && data.videoUrl) {
         const newVid: GeneratedVideoItem = {
           id: `vid_${Date.now()}`,
-          prompt,
+          prompt: prompt || 'Image animation',
           videoUrl: data.videoUrl,
           aspectRatio,
           duration,
           createdAt: new Date().toISOString(),
         };
-        setVideos([newVid, ...videos]);
+        const updated = [newVid, ...videos];
+        saveVideosList(updated);
         onSaveToLibrary?.(newVid);
-        setStatusMessage(null);
         setLoading(false);
         return;
       }
@@ -89,247 +130,378 @@ export const VideoStudioView: React.FC<VideoStudioProps> = ({ onSaveToLibrary })
       if (data.operationName) {
         setStatusMessage('Synthesizing frames & rendering motion trajectories...');
         pollStatus(data.operationName, prompt);
+      } else {
+        throw new Error('No operation name returned by video model');
       }
     } catch (err: any) {
-      // Provide high quality video demonstration if external quota limit is hit
-      const fallbackVid: GeneratedVideoItem = {
-        id: `vid_${Date.now()}`,
-        prompt,
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-        aspectRatio,
-        duration,
-        createdAt: new Date().toISOString(),
-      };
-      setVideos([fallbackVid, ...videos]);
-      onSaveToLibrary?.(fallbackVid);
+      setError(err.message || 'Video generation failed. Please try again.');
       setLoading(false);
-      setStatusMessage(null);
     }
   };
 
   const pollStatus = (operationName: string, originalPrompt: string) => {
     let attempts = 0;
-    const interval = setInterval(async () => {
+    const maxAttempts = 30;
+
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+
+    pollIntervalRef.current = setInterval(async () => {
       attempts++;
       try {
         const res = await fetch(`/api/video/status/${encodeURIComponent(operationName)}`);
         const data = await res.json();
+
         if (data.done) {
-          clearInterval(interval);
+          clearInterval(pollIntervalRef.current);
           setLoading(false);
-          setStatusMessage(null);
-          const newVid: GeneratedVideoItem = {
-            id: `vid_${Date.now()}`,
-            prompt: originalPrompt,
-            videoUrl: data.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-            aspectRatio,
-            duration,
-            createdAt: new Date().toISOString(),
-          };
-          setVideos([newVid, ...videos]);
-          onSaveToLibrary?.(newVid);
+
+          if (data.error) {
+            setError(`Video rendering failed: ${data.error}`);
+            return;
+          }
+
+          if (data.videoUrl) {
+            const newVid: GeneratedVideoItem = {
+              id: `vid_${Date.now()}`,
+              prompt: originalPrompt || 'Image-to-video motion',
+              videoUrl: data.videoUrl,
+              aspectRatio: data.aspectRatio || aspectRatio,
+              duration,
+              createdAt: new Date().toISOString(),
+            };
+            const updated = [newVid, ...videos];
+            saveVideosList(updated);
+            onSaveToLibrary?.(newVid);
+          }
         } else {
-          setStatusMessage(`Rendering neural video frames (Pass ${attempts}/10)...`);
+          const pass = Math.min(Math.floor(attempts / 2) + 1, 10);
+          setStatusMessage(`Synthesizing motion trajectories (Pass ${pass}/10)...`);
         }
-      } catch (e) {
-        clearInterval(interval);
+
+        if (attempts >= maxAttempts) {
+          clearInterval(pollIntervalRef.current);
+          setLoading(false);
+          setError('Video generation took longer than expected. Please check back in a few minutes or retry.');
+        }
+      } catch (e: any) {
+        clearInterval(pollIntervalRef.current);
         setLoading(false);
-        setStatusMessage(null);
+        setError(`Failed to verify video status: ${e.message}`);
       }
-    }, 4000);
+    }, 5000);
   };
 
-  const sampleShortIdeas = [
-    'Dynamic street food prep in Bangkok night market, high frame-rate slow motion',
-    '3D satisfying metallic orb expanding and contracting in zero-gravity',
-    'Cyberpunk fashion model walking under holographic neon billboard',
+  const handleDeleteVideo = (id: string) => {
+    const updated = videos.filter((v) => v.id !== id);
+    saveVideosList(updated);
+  };
+
+  const handleDownloadVideo = (url: string, filename: string) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename.slice(0, 20).replace(/[^a-z0-9]/gi, '_')}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const samplePrompts = [
+    'Cinematic 8k drone shot of a futuristic neon city at dusk with holographic billboards and rainy streets',
+    'Macro time-lapse of a bioluminescent blossom opening in a mystical jungle, shimmering pollen',
+    'Dramatic ocean waves crashing against volcanic black cliffs under aurora borealis lighting',
+    'Hyper-realistic sports car drifting on a desert highway at golden hour, dust plumes in slow motion',
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#07090e] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#07090e] overflow-y-auto">
       {/* Studio Header */}
-      <div className="px-6 py-3.5 border-b border-slate-800 bg-[#0a0d14] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
-            <Video className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-white font-heading">AI Video & Shorts Studio</h2>
-            <p className="text-xs text-slate-400">Veo-powered motion generation & high-impact social clips</p>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-0.5 flex items-center">
-          <button
-            onClick={() => {
-              setActiveTab('cinematic');
-              setAspectRatio('16:9');
-            }}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-              activeTab === 'cinematic'
-                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
+      <div className="border-b border-slate-800 bg-[#0a0d14] px-6 py-6 sm:py-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-3">
             <Film className="w-3.5 h-3.5" />
-            <span>Cinematic Film (16:9)</span>
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('shorts');
-              setAspectRatio('9:16');
-            }}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-              activeTab === 'shorts'
-                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>Shorts & Reels (9:16)</span>
-          </button>
+            <span>Autonomous Veo Neural Video Engine</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white font-heading tracking-tight mb-2">
+            AI Video & Motion Studio
+          </h1>
+          <p className="text-sm text-slate-400 max-w-2xl">
+            Transform text prompts and reference images into cinematic high-definition videos with natural physics, camera tracking, and coherent lighting.
+          </p>
         </div>
       </div>
 
-      {/* Main Split Content */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left Side Form */}
-        <div className="w-full lg:w-96 border-r border-slate-800 bg-[#090c12] p-5 overflow-y-auto shrink-0 space-y-5">
-          <form onSubmit={handleGenerate} className="space-y-4">
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        {/* Generator Form */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl backdrop-blur-md">
+          <form onSubmit={handleGenerate} className="space-y-5">
+            {/* Prompt input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Motion Script & Scene Prompt
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                Cinematic Video Prompt
               </label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                rows={4}
-                placeholder={
-                  activeTab === 'shorts'
-                    ? 'Describe vertical clip: "Fast-paced camera dolly zoom through neon synthwave city with vibrant lens flares"...'
-                    : 'Describe cinematic scene: "Aerial drone shot tracking a speed boat on crystal clear azure waters, 4K resolution"...'
-                }
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                placeholder="Describe camera movement, lighting, subject action, environment, and visual atmosphere..."
+                rows={3}
+                className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
               />
             </div>
 
-            {/* Quick ideas */}
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-500 font-semibold uppercase block">Quick Inspirations:</span>
-              {sampleShortIdeas.map((idea, i) => (
+            {/* Reference Image Upload (Image to Video) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>Reference Starting Image (Image-to-Video)</span>
+                <span className="text-[11px] text-slate-500 lowercase font-normal">optional</span>
+              </label>
+
+              {referenceImage ? (
+                <div className="relative inline-block border border-cyan-500/40 rounded-xl overflow-hidden p-1 bg-slate-950">
+                  <img
+                    src={referenceImage}
+                    alt="Reference starting frame"
+                    className="h-28 w-44 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReferenceImage(null);
+                      setReferenceImageName(null);
+                    }}
+                    className="absolute top-2 right-2 p-1 rounded-full bg-slate-900/90 text-slate-300 hover:text-white border border-slate-700"
+                    title="Remove image"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="text-[10px] text-slate-400 mt-1 truncate max-w-[176px]">
+                    {referenceImageName}
+                  </div>
+                </div>
+              ) : (
+                <label className="cursor-pointer border border-dashed border-slate-800 hover:border-cyan-500/50 rounded-xl p-4 flex items-center justify-center gap-3 bg-slate-950/60 hover:bg-slate-900/40 transition-colors">
+                  <Upload className="w-4 h-4 text-cyan-400" />
+                  <span className="text-xs text-slate-300 font-medium">Upload starting frame to animate</span>
+                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                </label>
+              )}
+            </div>
+
+            {/* Quick Inspiration Prompts */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              <span className="text-[11px] text-slate-500 self-center">Try:</span>
+              {samplePrompts.map((s, idx) => (
                 <button
-                  key={i}
+                  key={idx}
                   type="button"
-                  onClick={() => setPrompt(idea)}
-                  className="w-full text-left text-[11px] text-slate-400 hover:text-purple-300 hover:bg-slate-800/60 p-1.5 rounded transition-colors truncate"
+                  onClick={() => setPrompt(s)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-[11px] text-slate-300 hover:text-white border border-slate-700/60 transition-colors truncate max-w-xs"
                 >
-                  • {idea}
+                  {s.slice(0, 45)}...
                 </button>
               ))}
             </div>
 
-            {/* Duration Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Clip Duration
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[5, 10].map((sec) => (
+            {/* Settings bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-800/80">
+              {/* Aspect Ratio */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Aspect Ratio
+                </label>
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    key={sec}
                     type="button"
-                    onClick={() => setDuration(sec)}
-                    className={`py-1.5 px-3 rounded-lg text-xs font-mono font-medium transition-all ${
-                      duration === sec
-                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
-                        : 'bg-slate-950 text-slate-400 border border-slate-800'
+                    onClick={() => setAspectRatio('16:9')}
+                    className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                      aspectRatio === '16:9'
+                        ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                        : 'bg-slate-950 border-slate-800 text-slate-400'
                     }`}
                   >
-                    {sec} Seconds
+                    <Monitor className="w-3.5 h-3.5" />
+                    <span>16:9 Wide</span>
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setAspectRatio('9:16')}
+                    className={`py-2 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                      aspectRatio === '9:16'
+                        ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>9:16 Reel</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Resolution */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Resolution
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setResolution('720p')}
+                    className={`py-2 px-3 rounded-lg border text-xs font-semibold text-center transition-all ${
+                      resolution === '720p'
+                        ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    720p HD
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResolution('1080p')}
+                    className={`py-2 px-3 rounded-lg border text-xs font-semibold text-center transition-all ${
+                      resolution === '1080p'
+                        ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    1080p FHD
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <div className="flex flex-col justify-end">
+                <button
+                  type="submit"
+                  disabled={loading || (!prompt.trim() && !referenceImage)}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Synthesizing Video...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Generate AI Video</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-
-            {loading && statusMessage && (
-              <div className="p-3 rounded-xl bg-purple-950/50 border border-purple-500/40 text-purple-300 text-xs flex items-center gap-2.5">
-                <RefreshCw className="w-4 h-4 animate-spin text-purple-400 shrink-0" />
-                <span>{statusMessage}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || !prompt.trim()}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <ThinkPulseLogo size="sm" showText={false} animated />
-                  <span>ThinkPulse Rendering Video Frames...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Generate Video</span>
-                </>
-              )}
-            </button>
           </form>
+
+          {/* Active Generation State with Platform Logo */}
+          {loading && (
+            <div className="mt-6 pt-6 border-t border-slate-800 flex justify-center">
+              <GenerationIndicator
+                status="Synthesizing Neural Video..."
+                subtext={statusMessage}
+                size="md"
+              />
+            </div>
+          )}
+
+          {/* Error Message with Retry */}
+          {error && (
+            <div className="mt-6 p-4 rounded-xl bg-red-950/70 border border-red-500/30 text-red-200 text-xs flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="font-semibold text-red-300">Video Generation Notice</div>
+                  <div className="mt-0.5 leading-relaxed text-red-200/90">{error}</div>
+                </div>
+              </div>
+              {retryablePrompt && (
+                <button
+                  onClick={handleGenerate}
+                  className="px-3 py-1.5 rounded-lg bg-red-900/60 hover:bg-red-900 text-white font-semibold text-[11px] shrink-0 transition-colors"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Right Video Theater */}
-        <div className="flex-1 bg-[#05070a] p-6 overflow-y-auto">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-heading">
-                Generated Video Projects ({videos.length})
-              </h3>
-              <span className="text-xs text-slate-500 font-mono">Real-time Video Render Engine</span>
-            </div>
+        {/* Generated Videos Gallery */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <Film className="w-4 h-4 text-cyan-400" />
+              <span>Generated Video Clips</span>
+              <span className="text-xs font-mono text-slate-400">({videos.length})</span>
+            </h2>
+          </div>
 
+          {videos.length === 0 ? (
+            <div className="p-12 rounded-2xl border border-slate-800 bg-slate-900/40 text-center space-y-3">
+              <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 mx-auto">
+                <Video className="w-6 h-6" />
+              </div>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                No videos generated yet. Enter a cinematic prompt or upload a reference image above to create your first video clip!
+              </p>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {videos.map((vid) => (
                 <div
                   key={vid.id}
-                  className="rounded-2xl overflow-hidden border border-slate-800 bg-slate-900/60 shadow-xl flex flex-col justify-between"
+                  className="rounded-2xl border border-slate-800 bg-slate-900/70 overflow-hidden shadow-xl flex flex-col justify-between group"
                 >
-                  <div className="relative bg-black flex items-center justify-center overflow-hidden">
+                  {/* Video Player */}
+                  <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
                     <video
                       src={vid.videoUrl}
                       controls
+                      loop
                       playsInline
-                      className={`w-full ${vid.aspectRatio === '9:16' ? 'max-h-[420px] object-contain' : 'aspect-video object-cover'}`}
+                      className="w-full h-full object-cover"
                     />
                   </div>
 
-                  <div className="p-4 border-t border-slate-800 bg-[#090c12]">
-                    <p className="text-xs text-slate-300 line-clamp-2 mb-3">{vid.prompt}</p>
-                    <div className="flex items-center justify-between">
+                  {/* Metadata & Actions */}
+                  <div className="p-4 space-y-3">
+                    <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed font-medium">
+                      {vid.prompt}
+                    </p>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] text-slate-500">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-purple-300 border border-slate-700">
-                          {vid.aspectRatio}
-                        </span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-                          {vid.duration}s
-                        </span>
+                        <span className="font-mono uppercase">{vid.aspectRatio}</span>
+                        <span>•</span>
+                        <span>{new Date(vid.createdAt).toLocaleDateString()}</span>
                       </div>
-                      <a
-                        href={vid.videoUrl}
-                        download={`thinkpulse-${vid.id}.mp4`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white font-medium flex items-center gap-1.5 transition-colors"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Download MP4</span>
-                      </a>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleDownloadVideo(vid.videoUrl, vid.prompt)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                          title="Download MP4"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onSaveToLibrary?.(vid)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                          title="Save to Library"
+                        >
+                          <Bookmark className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVideo(vid.id)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950/60 text-slate-400 hover:text-red-400 transition-colors"
+                          title="Delete Video"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

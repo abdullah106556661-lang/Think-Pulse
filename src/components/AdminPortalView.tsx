@@ -33,6 +33,7 @@ import {
   Radio,
   Image as ImageIcon,
   Video,
+  Layers,
 } from 'lucide-react';
 import { User, PricingPlan, PaymentRecord } from '../types';
 import { ThinkPulseLogo } from './ThinkPulseLogo';
@@ -61,7 +62,7 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
   );
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'users' | 'payments' | 'pricing' | 'settings' | 'logs' | 'security'
+    'overview' | 'users' | 'projects' | 'domains' | 'payments' | 'pricing' | 'generations' | 'settings' | 'logs' | 'security'
   >('overview');
 
   const [stats, setStats] = useState<any>({
@@ -82,6 +83,9 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
   const [users, setUsers] = useState<any[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [plans, setPlans] = useState<PricingPlan[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [domains, setDomains] = useState<any[]>([]);
+  const [generations, setGenerations] = useState<any[]>([]);
   const [siteSettings, setSiteSettings] = useState<any>({
     maintenanceMode: false,
     allowRegistrations: true,
@@ -130,7 +134,7 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
   const [newPassword, setNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const getAdminToken = () => localStorage.getItem('thinkpulse_token') || 'thinkpulse_super_admin';
+  const getAdminToken = () => localStorage.getItem('thinkpulse_token') || '';
 
   // Strict server-side verification
   useEffect(() => {
@@ -208,7 +212,7 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
         Authorization: token ? `Bearer ${token}` : '',
       };
 
-      const [overviewRes, usersRes, paymentsRes, plansRes, settingsRes, auditRes, errorRes] =
+      const [overviewRes, usersRes, paymentsRes, plansRes, settingsRes, auditRes, errorRes, projectsRes, domainsRes, genRes] =
         await Promise.all([
           fetch('/api/admin/overview', { headers }),
           fetch('/api/admin/users', { headers }),
@@ -217,6 +221,9 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
           fetch('/api/admin/settings', { headers }),
           fetch('/api/admin/audit-logs', { headers }),
           fetch('/api/admin/system-errors', { headers }),
+          fetch('/api/admin/projects', { headers }),
+          fetch('/api/admin/domains', { headers }),
+          fetch('/api/admin/generations', { headers }),
         ]);
 
       if (overviewRes.ok) setStats(await overviewRes.json());
@@ -244,10 +251,57 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
         const data = await errorRes.json();
         setSystemErrors(data.errors || []);
       }
+      if (projectsRes.ok) {
+        const data = await projectsRes.json();
+        setProjects(data.projects || []);
+      }
+      if (domainsRes.ok) {
+        const data = await domainsRes.json();
+        setDomains(data.domains || []);
+      }
+      if (genRes.ok) {
+        const data = await genRes.json();
+        setGenerations(data.generations || []);
+      }
     } catch (e) {
       console.warn('Admin fetch error', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReviewDomain = async (id: string, status: 'approved' | 'rejected', adminNote?: string) => {
+    try {
+      const token = getAdminToken();
+      const res = await fetch('/api/admin/domains/review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ id, status, adminNote }),
+      });
+      if (res.ok) {
+        fetchAdminData();
+      }
+    } catch (e) {
+      console.error('Domain review error', e);
+    }
+  };
+
+  const handleDeleteAdminProject = async (id: string) => {
+    if (!window.confirm('Delete this user project and take down its live URL?')) return;
+    try {
+      const token = getAdminToken();
+      const res = await fetch(`/api/admin/projects/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: token ? `Bearer ${token}` : '' },
+      });
+      if (res.ok) {
+        fetchAdminData();
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -608,6 +662,39 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
         >
           <Users className="w-4 h-4" />
           <span>User Accounts & Quotas</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('projects')}
+          className={`py-3 px-4 border-b-2 text-xs font-semibold flex items-center gap-2 transition-colors whitespace-nowrap ${
+            activeTab === 'projects'
+              ? 'border-amber-400 text-amber-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Deployed Projects ({projects.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('domains')}
+          className={`py-3 px-4 border-b-2 text-xs font-semibold flex items-center gap-2 transition-colors whitespace-nowrap ${
+            activeTab === 'domains'
+              ? 'border-amber-400 text-amber-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Globe className="w-4 h-4" />
+          <span>Domain Orders ({domains.filter(d => d.status === 'pending').length} Pending)</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('generations')}
+          className={`py-3 px-4 border-b-2 text-xs font-semibold flex items-center gap-2 transition-colors whitespace-nowrap ${
+            activeTab === 'generations'
+              ? 'border-amber-400 text-amber-400'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>AI Telemetry ({generations.length})</span>
         </button>
         <button
           onClick={() => setActiveTab('payments')}

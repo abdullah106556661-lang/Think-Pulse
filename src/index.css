@@ -3,6 +3,7 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
   
   h1, h2, h3, .font-heading {
@@ -12,6 +13,75 @@
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', monospace;
   }
+}
+
+/* Light Mode Overrides */
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html.light .bg-\[\#07090e\],
+html.light .bg-\[\#0b0f17\],
+html.light .bg-\[\#080b11\],
+html.light .bg-\[\#05070a\],
+html.light .bg-\[\#0a0d14\],
+html.light .bg-\[\#090c12\],
+html.light .bg-\[\#171717\],
+html.light .bg-\[\#212121\] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light .bg-slate-950,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/70,
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/50,
+html.light .bg-slate-950\/40 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .bg-slate-900,
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/70,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/50 {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-\[\#1e1e1e\],
+html.light .bg-\[\#2a2a2a\],
+html.light .bg-\[\#282828\] {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .border-slate-800,
+html.light .border-slate-800\/80,
+html.light .border-slate-700,
+html.light .border-slate-700\/60,
+html.light .border-\[\#2d2d2d\],
+html.light .border-\[\#262626\],
+html.light .border-\[\#333\],
+html.light .border-\[\#333333\],
+html.light .border-\[\#383838\] {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .text-slate-100,
+html.light .text-white,
+html.light .text-\[\#ececec\] {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-300,
+html.light .text-slate-400 {
+  color: #475569 !important;
 }
 
 /* Custom sleek scrollbar */

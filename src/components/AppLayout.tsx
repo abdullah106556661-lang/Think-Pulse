@@ -37,6 +37,8 @@ import {
   Download,
   Code,
   Keyboard,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import {
   exportConversationAsJSON,
@@ -91,7 +93,32 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const [exportingConvId, setExportingConvId] = useState<string | null>(null);
 
   const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
-  const isAdmin = user?.email?.toLowerCase().trim() === 'abdullah106556661@gmail.com';
+  const isAdmin = Boolean(user && user.role === 'admin' && user.email?.toLowerCase().trim() === 'abdullah106556661@gmail.com');
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('thinkpulse_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch {}
+    return 'dark';
+  });
+
+  React.useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    }
+    try {
+      localStorage.setItem('thinkpulse_theme', theme);
+    } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // ChatGPT-style GPTs and Specialized Studio tools
   const gptTools: Array<{
@@ -162,6 +189,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       description: 'Subscriptions, tokens & JazzCash',
       icon: CreditCard,
       badge: 'PRO',
+    },
+    {
+      id: 'dashboard-domains',
+      label: 'Domain Registry & SSL',
+      description: 'Search, buy & manage custom domains',
+      icon: Globe,
+      badge: 'NEW',
     },
     {
       id: 'dashboard-library',
@@ -339,6 +373,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             </div>
 
             <div className="flex items-center gap-1">
+              {/* Theme Switcher Button */}
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-[#212121] transition-colors"
+                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                aria-label="Toggle Theme"
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
+              </button>
+
               {/* New Chat Button (Square Pen) */}
               <button
                 onClick={() => {
@@ -538,68 +582,92 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         </div>
 
         {/* ChatGPT Bottom Profile Bar */}
-        <div className="h-20 p-3 border-t border-[#262626] bg-[#141414] flex flex-col justify-center relative">
-          <div className="flex items-center justify-between">
-            <div
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity flex-1 min-w-0"
-            >
-              {/* User Avatar Circle */}
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm">
-                {user?.name ? user.name[0].toUpperCase() : 'A'}
-              </div>
+        <div className="min-h-20 p-3 border-t border-[#262626] bg-[#141414] flex flex-col justify-center relative">
+          {user ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 transition-opacity flex-1 min-w-0"
+                >
+                  {/* User Avatar Circle */}
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-sm">
+                    {user?.name ? user.name[0].toUpperCase() : 'U'}
+                  </div>
 
-              <div className="truncate">
-                <div className="flex items-center gap-1">
-                  <p className="text-xs font-bold text-white truncate">
-                    {user?.name || 'Abdullah'}
-                  </p>
-                  {isAdmin && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
+                  <div className="truncate">
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs font-bold text-white truncate">
+                        {user?.name || 'User'}
+                      </p>
+                      {isAdmin && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
+                    </div>
+                    <p className="text-[10px] text-cyan-400 font-mono truncate">
+                      {isAdmin ? 'Super Admin ∞' : `${user?.plan || 'Free'} Plan`}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-cyan-400 font-mono truncate">
-                  {user?.unlimitedAccess ? 'Super Admin ∞' : `${user?.plan || 'Pro'} Plan`}
-                </p>
+
+                {/* Quick Live Voice Mode Launcher */}
+                {onOpenLiveCall && (
+                  <button
+                    onClick={onOpenLiveCall}
+                    className="p-2 rounded-xl text-cyan-400 hover:text-white hover:bg-[#212121] transition-colors"
+                    title="ChatGPT Advanced Voice Mode (لائیو بات چیت)"
+                  >
+                    <Headphones className="w-4 h-4" />
+                  </button>
+                )}
+
+                {/* Quick Keyboard Shortcuts Cheatsheet Trigger */}
+                {onOpenShortcutsHelp && (
+                  <button
+                    onClick={onOpenShortcutsHelp}
+                    className="p-2 rounded-xl text-slate-400 hover:text-cyan-300 hover:bg-[#212121] transition-colors"
+                    title="Keyboard shortcuts guide (Ctrl+/)"
+                  >
+                    <Keyboard className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  onClick={onLogout}
+                  className="p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-[#212121] transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
+
+              {/* Quick User Plan status */}
+              <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                <span>Tokens:</span>
+                <span className={user?.unlimitedAccess ? 'text-amber-400 font-bold' : 'text-slate-400'}>
+                  {user?.unlimitedAccess ? '∞ Unlimited' : (user?.tokensRemaining?.toLocaleString() || '1,000,000')}
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => onNavigate('auth-login')}
+                  className="flex-1 py-1.5 px-3 rounded-lg bg-[#212121] hover:bg-[#2a2a2a] text-slate-200 hover:text-white text-xs font-medium border border-[#333] transition-colors text-center"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => onNavigate('auth-signup')}
+                  className="flex-1 py-1.5 px-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-semibold shadow-md shadow-cyan-500/20 transition-all text-center"
+                >
+                  Sign Up Free
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 text-center">
+                Sign in to save chats & unlock all models
+              </p>
             </div>
-
-            {/* Quick Live Voice Mode Launcher */}
-            {onOpenLiveCall && (
-              <button
-                onClick={onOpenLiveCall}
-                className="p-2 rounded-xl text-cyan-400 hover:text-white hover:bg-[#212121] transition-colors"
-                title="ChatGPT Advanced Voice Mode (لائیو بات چیت)"
-              >
-                <Headphones className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Quick Keyboard Shortcuts Cheatsheet Trigger */}
-            {onOpenShortcutsHelp && (
-              <button
-                onClick={onOpenShortcutsHelp}
-                className="p-2 rounded-xl text-slate-400 hover:text-cyan-300 hover:bg-[#212121] transition-colors"
-                title="Keyboard shortcuts guide (Ctrl+/)"
-              >
-                <Keyboard className="w-4 h-4" />
-              </button>
-            )}
-
-            <button
-              onClick={onLogout}
-              className="p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-[#212121] transition-colors"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Quick User Plan status */}
-          <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-            <span>Tokens:</span>
-            <span className={user?.unlimitedAccess ? 'text-amber-400 font-bold' : 'text-slate-400'}>
-              {user?.unlimitedAccess ? '∞ Unlimited' : (user?.tokensRemaining?.toLocaleString() || '1,000,000')}
-            </span>
-          </div>
+          )}
 
           {/* User Popover Menu */}
           {showUserMenu && (
@@ -714,16 +782,26 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             <ThinkPulseLogo size="sm" />
           </div>
 
-          <button
-            onClick={() => {
-              onNewChat?.();
-              onNavigate('dashboard-chat');
-            }}
-            className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-[#212121]"
-            title="New chat"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-[#212121] transition-colors"
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              aria-label="Toggle Theme"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
+            </button>
+            <button
+              onClick={() => {
+                onNewChat?.();
+                onNavigate('dashboard-chat');
+              }}
+              className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-[#212121]"
+              title="New chat"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Child Router View */}

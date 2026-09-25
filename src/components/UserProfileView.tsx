@@ -20,6 +20,11 @@ import {
   Smartphone,
   ChevronRight,
   LogOut,
+  Globe,
+  ExternalLink,
+  Copy,
+  Layers,
+  Activity,
 } from 'lucide-react';
 import { User, ViewMode, PaymentRecord, UserNotification, PricingPlan } from '../types';
 
@@ -38,7 +43,9 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
   onLogout,
   onOpenJazzCash,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'security' | 'payments' | 'notifications'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'projects' | 'domains' | 'generations' | 'payments' | 'security' | 'notifications'
+  >('overview');
   
   // Profile edit state
   const [name, setName] = useState(user?.name || '');
@@ -63,6 +70,9 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [subscription, setSubscription] = useState<any>(null);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [domains, setDomains] = useState<any[]>([]);
+  const [generations, setGenerations] = useState<any[]>([]);
 
   const getToken = () => localStorage.getItem('thinkpulse_token') || '';
 
@@ -85,6 +95,9 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
         if (data.subscription) setSubscription(data.subscription);
         if (data.payments) setPayments(data.payments);
         if (data.notifications) setNotifications(data.notifications);
+        if (data.projects) setProjects(data.projects);
+        if (data.domains) setDomains(data.domains);
+        if (data.generations) setGenerations(data.generations);
       }
     } catch (e) {
       console.error('Error loading dashboard data', e);
@@ -286,6 +299,39 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
         >
           <UserIcon className="w-4 h-4" />
           <span>Profile & Overview</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('projects')}
+          className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'projects'
+              ? 'border-cyan-400 text-cyan-300'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Projects & Sites ({projects.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('domains')}
+          className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'domains'
+              ? 'border-cyan-400 text-cyan-300'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Globe className="w-4 h-4" />
+          <span>Domain Requests ({domains.length})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('generations')}
+          className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'generations'
+              ? 'border-cyan-400 text-cyan-300'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>AI History ({generations.length})</span>
         </button>
         <button
           onClick={() => setActiveTab('payments')}
@@ -519,6 +565,224 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* PROJECTS TAB */}
+        {activeTab === 'projects' && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white">My Generated Projects & Live Deployments</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Access your autonomous websites, applications, and globally deployed live URLs.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onNavigate('dashboard-website')}
+                  className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all flex items-center gap-1.5"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>New Website</span>
+                </button>
+                <button
+                  onClick={() => onNavigate('dashboard-app')}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all flex items-center gap-1.5"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>New App</span>
+                </button>
+              </div>
+            </div>
+
+            {projects.length === 0 ? (
+              <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 text-slate-400 text-xs space-y-3">
+                <Layers className="w-8 h-8 text-slate-600 mx-auto" />
+                <p>No projects generated yet. Build your first website or app with the AI Builders above!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {projects.map((proj) => (
+                  <div
+                    key={proj.id}
+                    className="p-5 rounded-2xl border border-slate-800 bg-slate-900/70 space-y-3 flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 font-semibold">
+                          {proj.type || 'website'}
+                        </span>
+                        {proj.isDeployed ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>ONLINE & LIVE</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 font-mono">DRAFT</span>
+                        )}
+                      </div>
+                      <h4 className="text-base font-bold text-white font-heading">{proj.title}</h4>
+                      <p className="text-xs text-slate-400 line-clamp-2 mt-1">{proj.prompt || proj.description}</p>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                      {proj.liveUrl && (
+                        <div className="flex items-center justify-between gap-2 bg-slate-950/80 p-2 rounded-xl border border-slate-800 text-xs">
+                          <span className="font-mono text-cyan-400 truncate text-[11px]">{proj.liveUrl}</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(proj.liveUrl);
+                                alert('Live URL copied!');
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-white"
+                              title="Copy URL"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <a
+                              href={proj.liveUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 rounded text-cyan-400 hover:text-cyan-300"
+                              title="Open Live Site"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Updated: {new Date(proj.updatedAt || proj.createdAt).toLocaleDateString()}</span>
+                        {proj.liveUrl && (
+                          <a
+                            href={proj.liveUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold text-emerald-400 hover:underline flex items-center gap-1"
+                          >
+                            <span>Visit Live</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* DOMAINS TAB */}
+        {activeTab === 'domains' && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white">Domain Registrations & Custom DNS</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Connect custom top-level domains directly to your ThinkPulse live websites.
+                </p>
+              </div>
+              <button
+                onClick={() => onNavigate('dashboard-domains')}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-cyan-500/20"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Search & Request Domain</span>
+              </button>
+            </div>
+
+            {domains.length === 0 ? (
+              <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 text-slate-400 text-xs space-y-3">
+                <Globe className="w-8 h-8 text-slate-600 mx-auto" />
+                <p>No domain requests submitted yet. Use the Domain Manager to search and register a custom domain.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {domains.map((dom) => (
+                  <div
+                    key={dom.id}
+                    className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 flex flex-wrap items-center justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-bold text-white text-base font-heading">{dom.domainName}</span>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            dom.status === 'approved'
+                              ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-500/30'
+                              : dom.status === 'rejected'
+                              ? 'bg-red-950/80 text-red-400 border border-red-500/30'
+                              : 'bg-amber-950/80 text-amber-300 border border-amber-500/30'
+                          }`}
+                        >
+                          {dom.status === 'pending' ? '⏳ PENDING APPROVAL' : dom.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-3">
+                        <span>Ref ID: <span className="font-mono text-slate-300">{dom.id}</span></span>
+                        <span>•</span>
+                        <span>TID: <span className="font-mono text-slate-300">{dom.transactionId || 'N/A'}</span></span>
+                        <span>•</span>
+                        <span>Price: <strong className="text-cyan-400 font-mono">PKR {dom.pricePkr?.toLocaleString()}</strong></span>
+                        <span>•</span>
+                        <span>Duration: {dom.years} yr</span>
+                      </div>
+                      {dom.adminNote && (
+                        <div className="mt-2 text-xs text-amber-200 bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-500/20">
+                          <strong>Admin Feedback:</strong> {dom.adminNote}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* GENERATIONS TAB */}
+        {activeTab === 'generations' && (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900/80 border border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white">AI Generation Audit Trail</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  Complete chronological history of prompts, models, and outputs across all ThinkPulse tools.
+                </p>
+              </div>
+              <span className="text-xs font-mono text-cyan-400 font-semibold">{generations.length} records</span>
+            </div>
+
+            {generations.length === 0 ? (
+              <div className="p-12 text-center rounded-2xl bg-slate-900/40 border border-slate-800 text-slate-400 text-xs">
+                No generations recorded yet in this session.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {generations.map((gen) => (
+                  <div
+                    key={gen.id}
+                    className="p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 flex items-center justify-between gap-4 text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-mono text-[10px] uppercase font-bold">
+                        {gen.tool}
+                      </span>
+                      <span className="text-slate-200 truncate max-w-md">{gen.prompt}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 text-slate-500 font-mono text-[11px]">
+                      <span className={gen.status === 'success' ? 'text-emerald-400' : 'text-red-400'}>
+                        {gen.status}
+                      </span>
+                      <span>{new Date(gen.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -21,6 +21,8 @@ import {
   Crown,
   Smartphone,
   CreditCard,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { ViewMode } from '../types';
 
@@ -41,6 +43,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [activeTab, setActiveTab] = useState<'chat' | 'website' | 'image' | 'video'>('website');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [currency, setCurrency] = useState<'PKR' | 'USD'>('PKR');
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('thinkpulse_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch {}
+    return 'dark';
+  });
+
+  React.useEffect(() => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    }
+    try {
+      localStorage.setItem('thinkpulse_theme', theme);
+    } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   const handleLaunchPrompt = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +144,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               Abdullah 55566 hacker
             </a>
+            <a
+              href="https://www.youtube.com/channel/UCiq2giiXtFk_XBfEuS6Dvrg"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-600/10 hover:bg-red-600/20 text-red-400 border border-red-500/30 text-xs font-semibold transition-all hover:scale-105"
+              title="Official YouTube Channel"
+            >
+              <Play className="w-3 h-3 fill-red-400" />
+              <span>YouTube</span>
+            </a>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -130,6 +167,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <span>Live Call (لائیو بات کریں)</span>
               </button>
             )}
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/60 text-slate-300 hover:text-amber-300 transition-colors"
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              aria-label="Toggle Theme"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
+            </button>
+
             <button
               onClick={() => onNavigate('auth-login')}
               className="px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
@@ -740,6 +787,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             <div className="flex items-center gap-6 text-xs text-slate-400">
+              <a
+                href="https://www.youtube.com/channel/UCiq2giiXtFk_XBfEuS6Dvrg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-red-400 text-red-400/90 font-medium inline-flex items-center gap-1.5"
+              >
+                <Play className="w-3 h-3 fill-red-400" />
+                <span>YouTube Channel</span>
+              </a>
               <a
                 href="/abdullah-55566-hacker"
                 onClick={(e) => {

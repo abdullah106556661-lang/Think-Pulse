@@ -18,6 +18,7 @@ import { UserProfileView } from './components/UserProfileView';
 import { PricingView } from './components/PricingView';
 import { SportTeamAIView } from './components/SportTeamAIView';
 import { AbdullahHackerSEOView } from './components/AbdullahHackerSEOView';
+import { DomainsView } from './components/DomainsView';
 import { LiveVoiceModal } from './components/LiveVoiceModal';
 import { JazzCashModal } from './components/JazzCashModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
@@ -25,51 +26,104 @@ import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { useGlobalKeyboardShortcuts } from './hooks/useGlobalKeyboardShortcuts';
 
 export default function App() {
-  // Default directly to ChatGPT interface or SEO brand page if URL matches
+  // Determine view based on URL and user authentication state
   const [currentView, setCurrentView] = useState<ViewMode>(() => {
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/abdullah-55566-hacker')) {
-      return 'seo-abdullah-brand';
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      if (path.startsWith('/abdullah-55566-hacker')) {
+        return 'seo-abdullah-brand';
+      }
+      if (path === '/login') {
+        return 'auth-login';
+      }
+      if (path === '/signup') {
+        return 'auth-signup';
+      }
+      if (path === '/domains') {
+        return 'dashboard-domains';
+      }
+      if (path === '/admin') {
+        try {
+          const savedToken = localStorage.getItem('thinkpulse_token');
+          const savedUser = localStorage.getItem('thinkpulse_user');
+          if (savedToken && savedUser) {
+            const parsed = JSON.parse(savedUser);
+            if (parsed?.email?.toLowerCase().trim() === 'abdullah106556661@gmail.com') {
+              return 'dashboard-admin';
+            }
+          }
+        } catch {}
+        return 'auth-login';
+      }
     }
-    return 'dashboard-chat';
+    // If a genuine user session exists in storage, start in chat; otherwise show Landing Page
+    try {
+      const savedToken = localStorage.getItem('thinkpulse_token');
+      const savedUser = localStorage.getItem('thinkpulse_user');
+      if (savedToken && savedToken !== 'thinkpulse_super_admin' && savedUser) {
+        return 'dashboard-chat';
+      }
+    } catch {}
+    return 'landing';
+  });
+
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const savedToken = localStorage.getItem('thinkpulse_token');
+      const savedUser = localStorage.getItem('thinkpulse_user');
+      // Clean up any legacy forced super-admin mock session
+      if (savedToken === 'thinkpulse_super_admin') {
+        localStorage.removeItem('thinkpulse_token');
+        localStorage.removeItem('thinkpulse_user');
+        return null;
+      }
+      if (savedUser && savedToken) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && parsed.email) return parsed;
+      }
+    } catch {}
+    return null; // Visitors start unauthenticated as guests
   });
 
   useEffect(() => {
     const handlePopState = () => {
-      if (window.location.pathname.startsWith('/abdullah-55566-hacker')) {
+      const path = window.location.pathname;
+      if (path.startsWith('/abdullah-55566-hacker')) {
         setCurrentView('seo-abdullah-brand');
-      } else if (currentView === 'seo-abdullah-brand') {
-        setCurrentView('dashboard-chat');
+      } else if (path === '/login') {
+        setCurrentView('auth-login');
+      } else if (path === '/signup') {
+        setCurrentView('auth-signup');
+      } else if (path === '/domains') {
+        setCurrentView('dashboard-domains');
+      } else if (path === '/admin') {
+        setCurrentView(user?.email?.toLowerCase().trim() === 'abdullah106556661@gmail.com' ? 'dashboard-admin' : 'auth-login');
+      } else if (path === '/') {
+        setCurrentView(user ? 'dashboard-chat' : 'landing');
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [currentView]);
+  }, [currentView, user]);
 
   const handleNavigate = (view: ViewMode) => {
     if (view === 'seo-abdullah-brand') {
       window.history.pushState({}, '', '/abdullah-55566-hacker');
-    } else if (window.location.pathname.startsWith('/abdullah-55566-hacker')) {
+    } else if (view === 'auth-login') {
+      window.history.pushState({}, '', '/login');
+    } else if (view === 'auth-signup') {
+      window.history.pushState({}, '', '/signup');
+    } else if (view === 'dashboard-domains') {
+      window.history.pushState({}, '', '/domains');
+    } else if (view === 'dashboard-admin') {
+      window.history.pushState({}, '', '/admin');
+    } else if (view === 'landing') {
+      window.history.pushState({}, '', '/');
+    } else if (window.location.pathname !== '/') {
       window.history.pushState({}, '', '/');
     }
     setCurrentView(view);
   };
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const savedUser = localStorage.getItem('thinkpulse_user');
-      if (savedUser) return JSON.parse(savedUser);
-    } catch {}
-    return {
-      id: 'usr_super_admin',
-      name: 'Abdullah (Super Admin)',
-      email: 'abdullah106556661@gmail.com',
-      plan: 'enterprise',
-      role: 'admin',
-      unlimited: true,
-      unlimitedAccess: true,
-      tokensRemaining: 999999999,
-      createdAt: new Date().toISOString(),
-    };
-  });
   const [language, setLanguage] = useState<SupportedLanguage>('en');
   const [liveVoiceOpen, setLiveVoiceOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -134,14 +188,20 @@ export default function App() {
   // Check and sync existing session on load with server
   useEffect(() => {
     const syncSession = async () => {
-      let token = localStorage.getItem('thinkpulse_token');
-      if (!token) {
-        token = 'thinkpulse_super_admin';
-        localStorage.setItem('thinkpulse_token', 'thinkpulse_super_admin');
+      const token = localStorage.getItem('thinkpulse_token');
+      // No token or legacy mock token: do not auto-authenticate
+      if (!token || token === 'thinkpulse_super_admin') {
+        if (token === 'thinkpulse_super_admin') {
+          localStorage.removeItem('thinkpulse_token');
+          localStorage.removeItem('thinkpulse_user');
+          setUser(null);
+        }
+        return;
       }
+
       try {
         const res = await fetch('/api/auth/me', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
@@ -150,19 +210,14 @@ export default function App() {
             localStorage.setItem('thinkpulse_user', JSON.stringify(data.user));
             return;
           }
+        } else if (res.status === 401 || res.status === 403) {
+          // Token is invalid or expired
+          localStorage.removeItem('thinkpulse_token');
+          localStorage.removeItem('thinkpulse_user');
+          setUser(null);
         }
       } catch (e) {
         console.warn('Session sync from server warning:', e);
-      }
-
-      // Fallback to local storage if offline or during initial startup
-      try {
-        const savedUser = localStorage.getItem('thinkpulse_user');
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
-        }
-      } catch (e) {
-        console.error('Error loading session', e);
       }
     };
 
@@ -248,19 +303,9 @@ export default function App() {
   // Launch quick prompt from Landing Page
   const handleQuickPrompt = (prompt: string, targetTool: ViewMode) => {
     if (!user) {
-      const demoUser: User = {
-        id: 'usr_super_admin',
-        email: 'abdullah106556661@gmail.com',
-        name: 'Abdullah (Super Admin)',
-        plan: 'enterprise',
-        role: 'admin',
-        unlimited: true,
-        unlimitedAccess: true,
-        tokensRemaining: 999999999,
-        createdAt: new Date().toISOString(),
-      };
-      setUser(demoUser);
-      localStorage.setItem('thinkpulse_user', JSON.stringify(demoUser));
+      // Require registration / sign-in so user creates their own account
+      setCurrentView('auth-signup');
+      return;
     }
     setCurrentView(targetTool);
   };
@@ -465,7 +510,7 @@ export default function App() {
           />
         )}
 
-        {currentView === 'dashboard-support' && (
+        {(currentView === 'dashboard-support' || currentView === 'dashboard-settings') && (
           <SupportSettingsView
             user={user}
             currentLanguage={language}
@@ -473,7 +518,7 @@ export default function App() {
           />
         )}
 
-        {currentView === 'dashboard-profile' && (
+        {(currentView === 'dashboard-profile' || currentView === 'dashboard-my-payments') && (
           <UserProfileView
             user={user}
             onUpdateUser={(updated) => {
@@ -501,6 +546,13 @@ export default function App() {
                 plan: (plan.id === 'enterprise' ? 'enterprise' : 'pro'),
               })
             }
+          />
+        )}
+
+        {currentView === 'dashboard-domains' && (
+          <DomainsView
+            user={user}
+            onNavigateAuth={() => handleNavigate('auth-login')}
           />
         )}
 

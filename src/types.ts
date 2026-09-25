@@ -13,6 +13,7 @@ export type ViewMode =
   | 'dashboard-app' 
   | 'dashboard-docs' 
   | 'dashboard-library' 
+  | 'dashboard-domains'
   | 'dashboard-support' 
   | 'dashboard-settings'
   | 'dashboard-profile'
@@ -181,6 +182,10 @@ export interface GeneratedWebsiteProject {
     css: string;
     js: string;
   };
+  isDeployed?: boolean;
+  deploySlug?: string;
+  liveUrl?: string;
+  deployedAt?: string;
   createdAt: string;
   updatedAt: string;
   revisions: {
@@ -196,7 +201,44 @@ export interface GeneratedAppProject {
   description: string;
   appType: 'kanban' | 'notes' | 'calculator' | 'fitness' | 'quiz' | 'custom';
   code: string;
+  isDeployed?: boolean;
+  deploySlug?: string;
+  liveUrl?: string;
+  deployedAt?: string;
   createdAt: string;
+}
+
+export interface DomainRequest {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  domainName: string;
+  tld: string;
+  years: number;
+  pricePkr: number;
+  priceUsd: number;
+  status: 'pending' | 'approved' | 'rejected';
+  paymentMethod: string;
+  senderMobile?: string;
+  transactionId?: string;
+  proofImageBase64?: string;
+  notes?: string;
+  adminNote?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
+export interface DeploymentItem {
+  id: string;
+  projectId: string;
+  title: string;
+  type: 'website' | 'app';
+  liveUrl: string;
+  slug: string;
+  deployedAt: string;
+  status: 'live' | 'inactive';
 }
 
 export interface LibraryItem {

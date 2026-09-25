@@ -47,7 +47,7 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 // Active standard quota model - fast and responsive
-const DEFAULT_TEXT_MODEL = 'gemini-3.5-flash';
+const DEFAULT_TEXT_MODEL = 'gemini-3.8-flash';
 
 // Helper for white-labeling internal model names across all API outputs
 function toWhiteLabelModelName(rawModel: string): string {
@@ -227,12 +227,12 @@ async function safeGenerateText(options: {
   let requestedModel = options.model || DEFAULT_TEXT_MODEL;
 
   // Model fallback waterfall:
-  // 1. Requested model (e.g. gemini-3.1-pro-preview, gemini-3.5-flash, or gemini-3.8-flash)
+  // 1. Requested model (e.g. gemini-3.8-flash, gemini-3.1-pro-preview)
   // 2. High-availability flash (gemini-3.8-flash)
   // 3. Ultra-fast lite (gemini-3.1-flash-lite)
   // 4. Resilient flash alias (gemini-flash-latest)
   const candidateModels = Array.from(
-    new Set([requestedModel, 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-3.8-flash'])
+    new Set([requestedModel, 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'])
   );
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -490,7 +490,7 @@ async function safeGenerateImage(
       });
 
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Image generation timed out')), 5000)
+        setTimeout(() => reject(new Error('Image generation timed out')), 30000)
       );
 
       const response: any = await Promise.race([generatePromise, timeoutPromise]);
@@ -1136,6 +1136,9 @@ app.get('/api/user/dashboard-data', requireAuth, (req, res) => {
     const notifications = db.getUserNotifications(user.id);
     const plans = db.getPlans().filter((p) => p.status === 'active');
     const settings = db.getSettings();
+    const projects = db.getUserProjects(user.id);
+    const domains = db.getUserDomainRequests(user.id);
+    const generations = db.getUserGenerations(user.id);
 
     res.json({
       user: toSafeUser(user),
@@ -1143,6 +1146,9 @@ app.get('/api/user/dashboard-data', requireAuth, (req, res) => {
       payments,
       notifications,
       plans,
+      projects,
+      domains,
+      generations,
       toolAccess: settings.toolAccess,
       officialJazzCash: {
         number: settings.officialJazzCashNumber,
@@ -2187,76 +2193,85 @@ const VIDEO_JOBS = new Map<string, any>();
 app.post('/api/generate-video', async (req, res) => {
   try {
     const { prompt, aspectRatio = '16:9', resolution = '720p', referenceImage, duration = 5 } = req.body;
-    if (!prompt) {
-      return res.status(400).json({ error: 'Video prompt is required' });
+    if (!prompt && !referenceImage) {
+      return res.status(400).json({ error: 'Video prompt or starting image is required' });
     }
 
     const ai = getGeminiClient();
     const jobId = `vjob_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const sampleVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+
+    const config: any = {
+      numberOfVideos: 1,
+      resolution: resolution === '1080p' ? '1080p' : '720p',
+      aspectRatio: (aspectRatio === '9:16' ? '9:16' : '16:9') as any,
+    };
+
+    const params: any = {
+      model: 'veo-3.1-lite-generate-preview',
+      prompt: prompt || 'High quality cinematic motion video',
+      config,
+    };
+
+    if (referenceImage) {
+      const cleanRef = referenceImage.replace(/^data:[^;]+;base64,/, '');
+      params.image = {
+        imageBytes: cleanRef,
+        mimeType: 'image/png',
+      };
+    }
 
     try {
-      const config: any = {
-        numberOfVideos: 1,
-        resolution: resolution === '1080p' ? '1080p' : '720p',
-        aspectRatio: (aspectRatio === '9:16' ? '9:16' : '16:9') as any,
-      };
-
-      const params: any = {
-        model: 'veo-3.1-lite-generate-preview',
-        prompt,
-        config,
-      };
-
-      if (referenceImage) {
-        const cleanRef = referenceImage.replace(/^data:[^;]+;base64,/, '');
-        params.image = {
-          imageBytes: cleanRef,
-          mimeType: 'image/png',
-        };
-      }
-
       const operation = await ai.models.generateVideos(params);
-      
+
       VIDEO_JOBS.set(jobId, {
+        jobId,
         operationName: operation.name,
-        prompt,
+        prompt: prompt || 'Image-to-video animation',
         aspectRatio,
         duration,
         status: 'processing',
-        videoUrl: sampleVideoUrl,
         createdAt: Date.now(),
+      });
+
+      // Record in generation history
+      db.addGenerationRecord({
+        userId: (req as any).user?.id || 'guest',
+        userEmail: (req as any).user?.email,
+        tool: 'video',
+        prompt: prompt || 'Image animation',
+        status: 'success',
       });
 
       return res.json({
         jobId,
         operationName: operation.name,
         status: 'processing',
-        message: 'Video synthesis initiated.',
+        message: 'Video synthesis initiated with Veo engine.',
       });
     } catch (veoErr: any) {
-      console.warn('Veo API quota notice:', veoErr.message);
-      VIDEO_JOBS.set(jobId, {
-        operationName: jobId,
-        prompt,
-        aspectRatio,
-        duration,
-        status: 'completed',
-        videoUrl: sampleVideoUrl,
-        createdAt: Date.now(),
+      console.warn('Veo generation error:', veoErr.message);
+
+      // Record failed generation
+      db.addGenerationRecord({
+        userId: (req as any).user?.id || 'guest',
+        userEmail: (req as any).user?.email,
+        tool: 'video',
+        prompt: prompt || 'Video synthesis',
+        status: 'failed',
       });
-      return res.json({
-        jobId,
-        operationName: jobId,
-        status: 'completed',
-        videoUrl: sampleVideoUrl,
+
+      return res.status(503).json({
+        error: `AI Video generation service message: ${veoErr.message || 'Capacity spike on Veo engine'}. Please try again.`,
+        status: 'failed',
+        retryable: true,
       });
     }
   } catch (err: any) {
     console.error('Video error:', err);
-    res.json({
-      status: 'completed',
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    res.status(500).json({
+      error: err.message || 'Failed to process video generation request',
+      status: 'failed',
+      retryable: true,
     });
   }
 });
@@ -2264,8 +2279,10 @@ app.post('/api/generate-video', async (req, res) => {
 const handleVideoStatusCheck = async (req: any, res: any) => {
   try {
     const opName = req.params?.operationName || req.body?.operationName || req.body?.jobId;
-    const defaultVidUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
-    
+    if (!opName) {
+      return res.status(400).json({ error: 'Operation name or Job ID required' });
+    }
+
     let job: any = null;
     for (const [_, j] of VIDEO_JOBS.entries()) {
       if (j.operationName === opName || j.jobId === opName) {
@@ -2274,43 +2291,55 @@ const handleVideoStatusCheck = async (req: any, res: any) => {
       }
     }
 
-    if (job?.status === 'completed' || !opName) {
-      return res.json({
-        done: true,
-        videoUrl: job?.videoUrl || defaultVidUrl,
-        prompt: job?.prompt,
-        aspectRatio: job?.aspectRatio,
-      });
-    }
-
     try {
       const ai = getGeminiClient();
       const op = new GenerateVideosOperation();
-      op.name = opName;
+      op.name = job?.operationName || opName;
       const updated = await ai.operations.getVideosOperation({ operation: op });
 
       if (updated.done) {
+        if (updated.error) {
+          return res.json({
+            done: true,
+            status: 'failed',
+            error: updated.error.message || 'Video generation failed in neural pipeline',
+            prompt: job?.prompt,
+          });
+        }
+
         const uri = updated.response?.generatedVideos?.[0]?.video?.uri;
+        const videoStreamUrl = `/api/video/stream/${encodeURIComponent(op.name || opName || '')}`;
+        
         return res.json({
           done: true,
-          videoUrl: uri || defaultVidUrl,
-          downloadUri: uri,
+          status: 'completed',
+          videoUrl: videoStreamUrl,
+          rawUri: uri,
+          downloadUri: videoStreamUrl,
           prompt: job?.prompt,
+          aspectRatio: job?.aspectRatio || '16:9',
         });
       }
-    } catch {
-      // Fall through to ready state
-    }
 
-    return res.json({
-      done: true,
-      videoUrl: job?.videoUrl || defaultVidUrl,
-      prompt: job?.prompt,
-    });
+      return res.json({
+        done: false,
+        status: 'processing',
+        progress: 'Rendering motion trajectories and neural frames...',
+        prompt: job?.prompt,
+      });
+    } catch (pollErr: any) {
+      return res.json({
+        done: false,
+        status: 'processing',
+        progress: 'Still synthesizing neural frames...',
+        prompt: job?.prompt,
+      });
+    }
   } catch (err: any) {
-    res.json({
+    res.status(500).json({
       done: true,
-      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      status: 'failed',
+      error: err.message || 'Failed to poll video status',
     });
   }
 };
@@ -2318,6 +2347,34 @@ const handleVideoStatusCheck = async (req: any, res: any) => {
 app.post('/api/video-status', handleVideoStatusCheck);
 app.get('/api/video/status/:operationName', handleVideoStatusCheck);
 app.get('/api/video-status/:operationName', handleVideoStatusCheck);
+
+// Proxy stream video bytes securely with API key
+app.get('/api/video/stream/:operationName', async (req, res) => {
+  try {
+    const opName = decodeURIComponent(req.params.operationName);
+    const ai = getGeminiClient();
+    const op = new GenerateVideosOperation();
+    op.name = opName;
+    const updated = await ai.operations.getVideosOperation({ operation: op });
+    const uri = updated.response?.generatedVideos?.[0]?.video?.uri;
+    if (!uri) {
+      return res.status(404).json({ error: 'Video URI not found or generation not completed' });
+    }
+    const apiKey = process.env.GEMINI_API_KEY || '';
+    const videoRes = await fetch(uri, {
+      headers: { 'x-goog-api-key': apiKey },
+    });
+    if (!videoRes.ok) {
+      return res.status(videoRes.status).json({ error: 'Upstream video streaming error' });
+    }
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', `inline; filename="thinkpulse-video-${Date.now()}.mp4"`);
+    const arrayBuffer = await videoRes.arrayBuffer();
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Stream failed' });
+  }
+});
 
 // -------------------------------------------------------------
 // 7. VOICE & TEXT-TO-SPEECH (TTS)
@@ -2818,6 +2875,315 @@ app.post('/api/support/ticket', (req, res) => {
 });
 
 // -------------------------------------------------------------
+// 11.2 REAL INDEPENDENT LIVE SITE & APPLICATION SERVING ENGINE
+// -------------------------------------------------------------
+const handleRenderLiveSite = (req: express.Request, res: express.Response) => {
+  const slug = req.params.slug;
+  const project = db.getProjectBySlug(slug);
+
+  if (!project) {
+    res.status(404);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(`<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 - Project Not Found | ThinkPulse Deployment Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+</head>
+<body class="bg-[#080b11] text-slate-100 min-h-screen flex items-center justify-center p-6 antialiased">
+  <div class="max-w-md w-full text-center bg-slate-900/80 border border-slate-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
+    <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 mx-auto flex items-center justify-center text-2xl font-bold mb-6">
+      404
+    </div>
+    <h1 class="text-2xl font-bold text-white mb-2">Live Site Not Found</h1>
+    <p class="text-slate-400 text-sm mb-6 leading-relaxed">
+      The project with slug <span class="font-mono text-cyan-400 font-semibold">${slug}</span> is not currently deployed or has been removed by its creator.
+    </p>
+    <a href="/" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-cyan-500/25 transition-all">
+      Launch ThinkPulse Platform
+    </a>
+  </div>
+</body>
+</html>`);
+  }
+
+  let html = project.files?.html || '';
+  if (!html && (project as any).code) {
+    html = (project as any).code;
+  }
+
+  // Ensure HTML5 structure
+  if (!html.toLowerCase().includes('<!doctype html>')) {
+    html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${project.title || 'Live Application'}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  ${project.files?.css ? `<style>${project.files.css}</style>` : ''}
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  ${html}
+  ${project.files?.js ? `<script>${project.files.js}</script>` : ''}
+</body>
+</html>`;
+  } else {
+    // Inject custom CSS & JS if present
+    if (project.files?.css && !html.includes(project.files.css)) {
+      html = html.replace('</head>', `<style>${project.files.css}</style></head>`);
+    }
+    if (project.files?.js && !html.includes(project.files.js)) {
+      html = html.replace('</body>', `<script>${project.files.js}</script></body>`);
+    }
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.send(html);
+};
+
+// Independent Live Site Routes (Separate from React SPA)
+app.get('/site/:slug', handleRenderLiveSite);
+app.get('/app/:slug', handleRenderLiveSite);
+app.get('/deployed/:slug', handleRenderLiveSite);
+
+// -------------------------------------------------------------
+// 11.3 DEPLOYMENT & PROJECT API ENDPOINTS
+// -------------------------------------------------------------
+app.post('/api/deploy', (req, res) => {
+  try {
+    const { id, title, prompt, description, category, type = 'website', files, theme } = req.body;
+    const protocol = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const hostUrl = `${protocol}://${host}`;
+
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.cookies?.tp_token;
+    const session = token ? db.getSession(token) : null;
+    const user = session ? db.getUserById(session.userId) : null;
+
+    const userId = user ? user.id : 'guest_creator';
+    const userEmail = user ? user.email : 'guest@thinkpulse.ai';
+
+    const saved = db.saveProject({
+      id,
+      userId,
+      userEmail,
+      type: type === 'app' ? 'app' : 'website',
+      title: title || 'Generated Project',
+      prompt: prompt || 'User autonomous generation',
+      description: description || 'Live standalone project',
+      category: category || 'general',
+      theme: theme || { primaryColor: '#06b6d4', font: 'Plus Jakarta Sans', mode: 'dark' },
+      files: files || { html: '', css: '', js: '' },
+    });
+
+    const deployResult = db.deployProject(saved.id, hostUrl, userId);
+    if (!deployResult.success) {
+      return res.status(400).json({ error: deployResult.error || 'Deployment failed' });
+    }
+
+    // Record generation activity
+    db.addGenerationRecord({
+      userId,
+      userEmail,
+      tool: type === 'app' ? 'app' : 'website',
+      prompt: prompt || title || 'Deployment',
+      status: 'success',
+      outputPreview: deployResult.liveUrl,
+    });
+
+    const updated = db.getProject(saved.id);
+    return res.json({
+      success: true,
+      liveUrl: deployResult.liveUrl,
+      slug: deployResult.slug,
+      project: updated,
+      message: 'Project successfully built and published live to global edge.',
+    });
+  } catch (err: any) {
+    console.error('Deployment error:', err);
+    res.status(500).json({ error: err.message || 'Deployment pipeline encountered an error' });
+  }
+});
+
+app.post('/api/projects/save', (req, res) => {
+  try {
+    const { id, title, prompt, description, category, type = 'website', files, theme } = req.body;
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.cookies?.tp_token;
+    const session = token ? db.getSession(token) : null;
+    const user = session ? db.getUserById(session.userId) : null;
+
+    const saved = db.saveProject({
+      id,
+      userId: user ? user.id : 'guest_creator',
+      userEmail: user ? user.email : 'guest@thinkpulse.ai',
+      type: type === 'app' ? 'app' : 'website',
+      title: title || 'Untitled Project',
+      prompt: prompt || '',
+      description: description || '',
+      category: category || 'general',
+      theme,
+      files: files || { html: '', css: '', js: '' },
+    });
+
+    res.json({ success: true, project: saved });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to save project' });
+  }
+});
+
+app.get('/api/projects', (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.cookies?.tp_token;
+    const session = token ? db.getSession(token) : null;
+    if (!session) {
+      return res.json({ projects: [] });
+    }
+    const projects = db.getUserProjects(session.userId);
+    res.json({ projects });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to list projects' });
+  }
+});
+
+app.delete('/api/projects/:id', (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.cookies?.tp_token;
+    const session = token ? db.getSession(token) : null;
+    const userId = session?.userId;
+    const success = db.deleteProject(req.params.id, userId);
+    res.json({ success });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to delete project' });
+  }
+});
+
+// -------------------------------------------------------------
+// 11.4 DOMAIN REGISTRY & REQUEST API
+// -------------------------------------------------------------
+app.get('/api/domains/pricing', (req, res) => {
+  res.json({
+    tlds: [
+      { tld: '.com', pricePkr: 3850, priceUsd: 13.99, popular: true },
+      { tld: '.ai', pricePkr: 19500, priceUsd: 69.99, popular: true },
+      { tld: '.pk', pricePkr: 3200, priceUsd: 11.5, popular: true },
+      { tld: '.org', pricePkr: 4200, priceUsd: 14.99 },
+      { tld: '.io', pricePkr: 11500, priceUsd: 39.99 },
+      { tld: '.tech', pricePkr: 2800, priceUsd: 9.99 },
+      { tld: '.net', pricePkr: 4100, priceUsd: 14.5 },
+      { tld: '.store', pricePkr: 1999, priceUsd: 6.99 },
+    ],
+  });
+});
+
+app.post('/api/domains/request', (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.cookies?.tp_token;
+    const session = token ? db.getSession(token) : null;
+    const user = session ? db.getUserById(session.userId) : null;
+
+    if (!user) {
+      return res.status(401).json({ error: 'Please sign in or create an account to request a domain.' });
+    }
+
+    const {
+      domainName,
+      tld,
+      years = 1,
+      pricePkr,
+      priceUsd,
+      paymentMethod = 'JazzCash',
+      senderMobile,
+      transactionId,
+      proofImageBase64,
+      notes,
+    } = req.body;
+
+    if (!domainName || !transactionId) {
+      return res.status(400).json({ error: 'Domain name and payment Transaction ID (TID) are required.' });
+    }
+
+    const domainReq = db.createDomainRequest({
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.name,
+      domainName,
+      tld: tld || '.com',
+      years: Number(years) || 1,
+      pricePkr: Number(pricePkr) || 3850,
+      priceUsd: Number(priceUsd) || 13.99,
+      paymentMethod,
+      senderMobile,
+      transactionId,
+      proofImageBase64,
+      notes,
+    });
+
+    res.json({
+      success: true,
+      domainRequest: domainReq,
+      message: 'Domain purchase order recorded. Status is PENDING Admin verification.',
+    });
+  } catch (err: any) {
+    console.error('Domain request error:', err);
+    res.status(500).json({ error: err.message || 'Failed to submit domain request' });
+  }
+});
+
+app.get('/api/user/domains', (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || req.cookies?.tp_token;
+    const session = token ? db.getSession(token) : null;
+    if (!session) {
+      return res.json({ domains: [] });
+    }
+    const domains = db.getUserDomainRequests(session.userId);
+    res.json({ domains });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to load domain requests' });
+  }
+});
+
+// Admin Domain & Project endpoints
+app.get('/api/admin/domains', requireAdmin, (req, res) => {
+  const domains = db.getAllDomainRequests();
+  res.json({ domains });
+});
+
+app.post('/api/admin/domains/review', requireAdmin, (req, res) => {
+  const { id, status, adminNote } = req.body;
+  const adminUser = (req as any).adminUser;
+  if (!['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+  const updated = db.reviewDomainRequest(id, status, adminNote, adminUser?.email);
+  if (!updated) {
+    return res.status(404).json({ error: 'Domain request not found' });
+  }
+  res.json({ success: true, domainRequest: updated });
+});
+
+app.get('/api/admin/projects', requireAdmin, (req, res) => {
+  const projects = db.getAllProjects();
+  res.json({ projects });
+});
+
+app.delete('/api/admin/projects/:id', requireAdmin, (req, res) => {
+  const success = db.deleteProject(req.params.id);
+  res.json({ success });
+});
+
+app.get('/api/admin/generations', requireAdmin, (req, res) => {
+  const generations = db.getAllGenerations(100);
+  res.json({ generations });
+});
+
+// -------------------------------------------------------------
 // 11.5 PUBLIC SEO, ROBOTS.TXT, SITEMAP.XML & ABDULLAH 55566 HACKER HUB
 // -------------------------------------------------------------
 app.get('/robots.txt', (req, res) => {
@@ -3023,11 +3389,18 @@ async function startServer() {
     res.status(500).send('Internal Server Error');
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[ThinkPulse AI] Engine active on port ${PORT} (${isProduction ? 'production' : 'development'} mode)`);
+  if (!process.env.VERCEL) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[ThinkPulse AI] Engine active on port ${PORT} (${isProduction ? 'production' : 'development'} mode)`);
+    });
+  }
+}
+
+if (!process.env.VERCEL) {
+  startServer().catch((err) => {
+    console.error('Server boot failure:', err);
   });
 }
 
-startServer().catch((err) => {
-  console.error('Server boot failure:', err);
-});
+export default app;
+
