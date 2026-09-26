@@ -208,16 +208,19 @@ interface DatabaseSchema {
   generations: DbGenerationRecord[];
 }
 
-const DB_DIR = path.join(process.cwd(), 'data');
+const isVercelEnvironment = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DB_DIR = isVercelEnvironment ? '/tmp' : path.join(process.cwd(), 'data');
 
 // Safely determine database file: If DATABASE_PATH is a remote URL (e.g. Supabase https://...), do NOT treat as local file path
 const rawDbEnv = (process.env.DATABASE_PATH || process.env.DATABASE_URL || '').trim();
 const isRemoteUrl = rawDbEnv.startsWith('http://') || rawDbEnv.startsWith('https://') || rawDbEnv.includes('://');
 export const REMOTE_DATABASE_URL = isRemoteUrl ? rawDbEnv : (process.env.SUPABASE_URL || '');
 
-const DB_FILE = (!isRemoteUrl && rawDbEnv)
-  ? path.resolve(process.cwd(), rawDbEnv)
-  : path.join(DB_DIR, 'thinkpulse_db.json');
+const DB_FILE = isVercelEnvironment
+  ? path.join('/tmp', 'thinkpulse_db.json')
+  : (!isRemoteUrl && rawDbEnv
+      ? path.resolve(process.cwd(), rawDbEnv)
+      : path.join(DB_DIR, 'thinkpulse_db.json'));
 
 const MASTER_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'abdullah106556661@gmail.com').toLowerCase().trim();
 const MASTER_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '1065566b';
@@ -415,7 +418,17 @@ class PersistentDatabase {
     try {
       const targetDir = path.dirname(DB_FILE);
       if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
+        try { fs.mkdirSync(targetDir, { recursive: true }); } catch {}
+      }
+
+      // If on Vercel and /tmp DB does not exist yet, copy from packaged data/thinkpulse_db.json if available
+      if (isVercelEnvironment && !fs.existsSync(DB_FILE)) {
+        const bundledFile = path.join(process.cwd(), 'data', 'thinkpulse_db.json');
+        if (fs.existsSync(bundledFile)) {
+          try {
+            fs.copyFileSync(bundledFile, DB_FILE);
+          } catch {}
+        }
       }
 
       if (fs.existsSync(DB_FILE)) {
@@ -438,8 +451,10 @@ class PersistentDatabase {
       this.ensureMasterAdmin();
       this.isLoaded = true;
     } catch (err) {
-      console.error('[Database] Failed to load database file, falling back to memory defaults:', err);
+      console.warn('[Database] Using memory-based fallback schema:', err);
       this.data = this.getDefaultSchema();
+      this.ensureMasterAdmin();
+      this.isLoaded = true;
     }
   }
 
@@ -447,13 +462,13 @@ class PersistentDatabase {
     try {
       const targetDir = path.dirname(DB_FILE);
       if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
+        try { fs.mkdirSync(targetDir, { recursive: true }); } catch {}
       }
       const tmpFile = `${DB_FILE}.tmp`;
       fs.writeFileSync(tmpFile, JSON.stringify(this.data, null, 2), 'utf-8');
       fs.renameSync(tmpFile, DB_FILE);
     } catch (err) {
-      console.error('[Database] Failed to save database to disk:', err);
+      console.warn('[Database] Storage write skipped (in-memory mode active):', err);
     }
   }
 

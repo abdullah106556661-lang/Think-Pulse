@@ -219,13 +219,13 @@ export const VideoStudioView: React.FC<VideoStudioProps> = ({ onSaveToLibrary })
         <div className="max-w-5xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-3">
             <Film className="w-3.5 h-3.5" />
-            <span>Autonomous Veo Neural Video Engine</span>
+            <span>Veo 3 Video Generation Engine (veo-3.1-fast-generate-preview)</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white font-heading tracking-tight mb-2">
             AI Video & Motion Studio
           </h1>
           <p className="text-sm text-slate-400 max-w-2xl">
-            Transform text prompts and reference images into cinematic high-definition videos with natural physics, camera tracking, and coherent lighting.
+            Generate high-definition video from text or upload photos to animate into cinematic motion videos using Veo 3 fast generation (16:9 Landscape or 9:16 Portrait).
           </p>
         </div>
       </div>

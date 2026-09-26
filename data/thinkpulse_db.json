@@ -15,8 +15,8 @@
       "unlimited": true,
       "unlimitedAccess": true,
       "createdAt": "2026-09-21T17:32:50.547Z",
-      "updatedAt": "2026-09-21T17:33:31.256Z",
-      "lastLoginAt": "2026-09-21T17:33:31.256Z"
+      "updatedAt": "2026-09-26T16:24:49.180Z",
+      "lastLoginAt": "2026-09-26T16:24:49.180Z"
     },
     "demo@thinkpulse.ai": {
       "id": "usr_demo_account",
@@ -69,6 +69,26 @@
       "role": "user",
       "createdAt": "2026-09-21T17:33:38.428Z",
       "expiresAt": "2026-10-21T17:33:38.428Z",
+      "userAgent": "curl/7.88.1",
+      "ip": "127.0.0.1"
+    },
+    "tp_adm_1790438097492_znohd9gf87": {
+      "token": "tp_adm_1790438097492_znohd9gf87",
+      "userId": "usr_master_admin",
+      "email": "abdullah106556661@gmail.com",
+      "role": "admin",
+      "createdAt": "2026-09-26T15:54:57.492Z",
+      "expiresAt": "2026-10-26T15:54:57.492Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+      "ip": "127.0.0.1"
+    },
+    "tp_adm_1790439889181_vr95mb0a6x": {
+      "token": "tp_adm_1790439889181_vr95mb0a6x",
+      "userId": "usr_master_admin",
+      "email": "abdullah106556661@gmail.com",
+      "role": "admin",
+      "createdAt": "2026-09-26T16:24:49.181Z",
+      "expiresAt": "2026-10-03T16:24:49.181Z",
       "userAgent": "curl/7.88.1",
       "ip": "127.0.0.1"
     }
@@ -169,6 +189,51 @@
   ],
   "auditLogs": [
     {
+      "actorEmail": "abdullah106556661@gmail.com",
+      "action": "AI_PROVIDER_HEALTH_ALERT",
+      "target": "Gemini Multimodal Chat & Reasoning API",
+      "details": "[DEGRADED] Probe response: Diagnostic probe timed out (>4000ms)",
+      "status": "warning",
+      "id": "audit_1790439938122_6zbk",
+      "timestamp": "2026-09-26T16:25:38.122Z"
+    },
+    {
+      "actorEmail": "abdullah106556661@gmail.com",
+      "action": "AI_PROVIDER_HEALTH_ALERT",
+      "target": "Gemini Multimodal Chat & Reasoning API",
+      "details": "[DEGRADED] Probe response: {\"error\":{\"code\":400,\"message\":\"Thinking level MINIMAL is not supported for this model. Please retry with othe",
+      "status": "warning",
+      "id": "audit_1790439906406_8co9",
+      "timestamp": "2026-09-26T16:25:06.406Z"
+    },
+    {
+      "actorEmail": "abdullah106556661@gmail.com",
+      "action": "USER_LOGIN",
+      "status": "success",
+      "details": "User logged in successfully",
+      "ip": "127.0.0.1",
+      "id": "audit_1790439889181_xuyt",
+      "timestamp": "2026-09-26T16:24:49.181Z"
+    },
+    {
+      "actorEmail": "abdullah106556661@gmail.com",
+      "action": "FAILED_LOGIN_ATTEMPT",
+      "status": "warning",
+      "details": "Incorrect password supplied",
+      "ip": "127.0.0.1",
+      "id": "audit_1790439882676_3pjr",
+      "timestamp": "2026-09-26T16:24:42.676Z"
+    },
+    {
+      "actorEmail": "abdullah106556661@gmail.com",
+      "action": "USER_LOGIN",
+      "status": "success",
+      "details": "User logged in successfully",
+      "ip": "127.0.0.1",
+      "id": "audit_1790438097493_cqxp",
+      "timestamp": "2026-09-26T15:54:57.493Z"
+    },
+    {
       "actorEmail": "testuser@example.com",
       "action": "USER_REGISTERED",
       "status": "success",
@@ -228,5 +293,8 @@
     }
   },
   "systemErrors": [],
-  "loginAttempts": {}
+  "loginAttempts": {},
+  "projects": {},
+  "domains": [],
+  "generations": []
 }

@@ -8,6 +8,8 @@ export type ViewMode =
   | 'dashboard-sport'
   | 'dashboard-image' 
   | 'dashboard-video' 
+  | 'dashboard-music'
+  | 'dashboard-transcribe'
   | 'dashboard-voice' 
   | 'dashboard-website' 
   | 'dashboard-app' 

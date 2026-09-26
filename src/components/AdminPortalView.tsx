@@ -34,9 +34,11 @@ import {
   Image as ImageIcon,
   Video,
   Layers,
+  Cpu,
 } from 'lucide-react';
 import { User, PricingPlan, PaymentRecord } from '../types';
 import { ThinkPulseLogo } from './ThinkPulseLogo';
+import { ProviderHealthMonitor } from './ProviderHealthMonitor';
 
 const SUPER_ADMIN_EMAIL = 'abdullah106556661@gmail.com';
 
@@ -62,7 +64,7 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
   );
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'users' | 'projects' | 'domains' | 'payments' | 'pricing' | 'generations' | 'settings' | 'logs' | 'security'
+    'overview' | 'health' | 'users' | 'projects' | 'domains' | 'payments' | 'pricing' | 'generations' | 'settings' | 'logs' | 'security'
   >('overview');
 
   const [stats, setStats] = useState<any>({
@@ -653,6 +655,20 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
           <span>Overview ({stats.totalUsers} Users)</span>
         </button>
         <button
+          onClick={() => setActiveTab('health')}
+          className={`py-3 px-4 border-b-2 text-xs font-semibold flex items-center gap-2 transition-colors whitespace-nowrap ${
+            activeTab === 'health'
+              ? 'border-cyan-400 text-cyan-300'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <div className="relative">
+            <Cpu className="w-4 h-4 text-cyan-400" />
+            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          </div>
+          <span>AI Provider Health & Outages</span>
+        </button>
+        <button
           onClick={() => setActiveTab('users')}
           className={`py-3 px-4 border-b-2 text-xs font-semibold flex items-center gap-2 transition-colors whitespace-nowrap ${
             activeTab === 'users'
@@ -827,6 +843,29 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
               </div>
 
               <div
+                onClick={() => setActiveTab('health')}
+                className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/40 to-slate-900 border border-cyan-500/30 hover:border-cyan-500/60 cursor-pointer transition-all flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+                    <Cpu className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-white">AI Provider Health & Outages</h4>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-500/40">
+                        8 / 8 Monitored
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Real-time latency, Gemini token probes, and proactive outage detection
+                    </p>
+                  </div>
+                </div>
+                <ArrowUpRight className="w-5 h-5 text-cyan-400" />
+              </div>
+
+              <div
                 onClick={() => setActiveTab('users')}
                 className="p-5 rounded-2xl bg-gradient-to-r from-cyan-950/40 to-slate-900 border border-cyan-500/30 hover:border-cyan-500/60 cursor-pointer transition-all flex items-center justify-between"
               >
@@ -854,6 +893,9 @@ export const AdminPortalView: React.FC<AdminPortalProps> = ({
             </div>
           </div>
         )}
+
+        {/* TAB: AI PROVIDER HEALTH & REAL-TIME OUTAGE DETECTION */}
+        {activeTab === 'health' && <ProviderHealthMonitor />}
 
         {/* TAB 2: USER ACCOUNTS & QUOTAS */}
         {activeTab === 'users' && (

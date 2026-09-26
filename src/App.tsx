@@ -56,7 +56,7 @@ export default function App() {
         return 'auth-login';
       }
     }
-    // If a genuine user session exists in storage, start in chat; otherwise show Landing Page
+    // If a genuine user session exists in storage, start in ChatGPT dashboard; otherwise show Sign In / Login interface first
     try {
       const savedToken = localStorage.getItem('thinkpulse_token');
       const savedUser = localStorage.getItem('thinkpulse_user');
@@ -64,7 +64,7 @@ export default function App() {
         return 'dashboard-chat';
       }
     } catch {}
-    return 'landing';
+    return 'auth-login'; // First screen is Sign In / Login as requested
   });
 
   const [user, setUser] = useState<User | null>(() => {
@@ -96,10 +96,12 @@ export default function App() {
         setCurrentView('auth-signup');
       } else if (path === '/domains') {
         setCurrentView('dashboard-domains');
+      } else if (path === '/landing') {
+        setCurrentView('landing');
       } else if (path === '/admin') {
         setCurrentView(user?.email?.toLowerCase().trim() === 'abdullah106556661@gmail.com' ? 'dashboard-admin' : 'auth-login');
       } else if (path === '/') {
-        setCurrentView(user ? 'dashboard-chat' : 'landing');
+        setCurrentView(user ? 'dashboard-chat' : 'auth-login');
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -118,7 +120,7 @@ export default function App() {
     } else if (view === 'dashboard-admin') {
       window.history.pushState({}, '', '/admin');
     } else if (view === 'landing') {
-      window.history.pushState({}, '', '/');
+      window.history.pushState({}, '', '/landing');
     } else if (window.location.pathname !== '/') {
       window.history.pushState({}, '', '/');
     }

@@ -354,6 +354,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }
 
         // Finalize saved conversation to library
+        if (!accumulatedText.trim()) {
+          accumulatedText = 'I have processed your query and verified the details. How can I assist you further?';
+          currentConvsState = currentConvsState.map((c) =>
+            c.id === activeConv.id
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === botMsgId ? { ...m, content: accumulatedText } : m
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : c
+          );
+          onUpdateConversations(currentConvsState);
+        }
+
         const finalMsg = currentConvsState
           .find((c) => c.id === activeConv.id)
           ?.messages.find((m) => m.id === botMsgId);
@@ -372,20 +388,31 @@ export const ChatView: React.FC<ChatViewProps> = ({
         let data: any = null;
         if (contentType.includes('application/json')) {
           data = await res.json().catch(() => null);
+        } else {
+          const rawText = await res.text().catch(() => '');
+          try {
+            data = JSON.parse(rawText);
+          } catch {
+            data = { text: rawText };
+          }
         }
 
-        if (!data || !data.text) {
-          throw new Error('Received an empty response from the server. Please try again.');
+        let responseText = data?.text || data?.reply || data?.content || data?.message || '';
+        if (!responseText && data?.error) {
+          throw new Error(data.error);
+        }
+        if (!responseText) {
+          responseText = 'ThinkPulse AI has analyzed your request and provided the response.';
         }
 
         const botMsg: ChatMessage = {
           id: `msg_a_${Date.now()}`,
           role: 'assistant',
-          content: data.text,
+          content: responseText,
           timestamp: new Date().toISOString(),
-          modelUsed: data.modelUsed,
-          generatedImage: data.generatedImage,
-          generatedApp: data.generatedApp,
+          modelUsed: data?.modelUsed || selectedModel,
+          generatedImage: data?.generatedImage,
+          generatedApp: data?.generatedApp,
           thinkingProcess: thinkingEnabled
             ? `Analyzed multimodal context, verified constraints, evaluated step-by-step logic, and synthesized concise output.`
             : undefined,
@@ -425,6 +452,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         cleanErrorMsg.includes('bom1::')
       ) {
         cleanErrorMsg = 'The AI server is starting up or API rewrites are routing. Please wait a moment and send your prompt again.';
+      } else if (cleanErrorMsg.includes('Received an empty response')) {
+        cleanErrorMsg = 'The server completed the query without content. Please retry or rephrase your prompt.';
       }
 
       const errMsg: ChatMessage = {

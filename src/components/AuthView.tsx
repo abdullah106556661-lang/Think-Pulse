@@ -43,6 +43,25 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  const safeJson = async (res: Response, fallbackError: string) => {
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      if (!res.ok) {
+        throw new Error(data.error || fallbackError);
+      }
+      return data;
+    } catch (parseErr: any) {
+      if (!res.ok) {
+        if (text.includes('A server error has occurred') || text.includes('Internal Server Error')) {
+          throw new Error('The server is initializing. Please wait a moment and try again.');
+        }
+        throw new Error(`Server returned error code ${res.status}. Please try again.`);
+      }
+      throw new Error(parseErr.message || fallbackError);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -75,8 +94,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: name.trim(), email: email.trim(), password, terms: acceptTerms }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Registration failed');
+        const data = await safeJson(res, 'Registration failed');
 
         localStorage.setItem('thinkpulse_token', data.token);
         localStorage.setItem('thinkpulse_auth_token', data.token);
@@ -88,8 +106,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim(), password, rememberMe }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Authentication failed');
+        const data = await safeJson(res, 'Authentication failed');
 
         localStorage.setItem('thinkpulse_token', data.token);
         localStorage.setItem('thinkpulse_auth_token', data.token);
@@ -101,8 +118,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim() }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to request reset');
+        const data = await safeJson(res, 'Failed to request reset');
 
         setSuccessMsg(data.message || 'Reset code sent! Check below to enter your code.');
         if (data.devResetCode) {
@@ -115,8 +131,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim(), code: resetCode.trim(), newPassword }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+        await safeJson(res, 'Failed to reset password');
 
         setSuccessMsg('Password reset successfully! You can now sign in with your new password.');
         setMode('login');
@@ -126,8 +141,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email.trim(), code: verifyCode.trim() }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Email verification failed');
+        await safeJson(res, 'Email verification failed');
 
         setSuccessMsg('Email verified successfully! You may now sign in.');
         setMode('login');
@@ -200,6 +214,17 @@ export const AuthView: React.FC<AuthViewProps> = ({
             </button>
           )}
         </p>
+
+        <div className="mt-2.5">
+          <button
+            type="button"
+            onClick={onNavigateLanding}
+            className="text-[11px] text-slate-400 hover:text-cyan-300 transition-colors inline-flex items-center gap-1"
+          >
+            <span>Explore Platform Showcase & Features</span>
+            <span>&rarr;</span>
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">

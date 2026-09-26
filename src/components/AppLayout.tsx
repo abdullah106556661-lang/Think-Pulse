@@ -39,6 +39,8 @@ import {
   Keyboard,
   Sun,
   Moon,
+  Bell,
+  CheckCheck,
 } from 'lucide-react';
 import {
   exportConversationAsJSON,
@@ -118,6 +120,51 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    title: string;
+    message: string;
+    time: string;
+    read: boolean;
+    link?: ViewMode;
+  }>>([
+    {
+      id: '1',
+      title: 'Autonomous Website Engine Active',
+      message: 'Create, test, and deploy websites to live working URLs with one click.',
+      time: 'Just now',
+      read: false,
+      link: 'dashboard-website',
+    },
+    {
+      id: '2',
+      title: 'DALL·E & Veo Neural Studios Ready',
+      message: 'Generate 8K photorealistic images and cinematic AI video sequences.',
+      time: '10m ago',
+      read: false,
+      link: 'dashboard-image',
+    },
+    {
+      id: '3',
+      title: 'JazzCash Instant Billing Live',
+      message: 'Automated VIP subscription upgrades active via 03176901963.',
+      time: '1h ago',
+      read: true,
+      link: 'dashboard-pricing',
+    },
+  ]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
   };
 
   // ChatGPT-style GPTs and Specialized Studio tools
@@ -373,6 +420,61 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             </div>
 
             <div className="flex items-center gap-1">
+              {/* Notifications Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#212121] transition-colors relative"
+                  title="Notifications"
+                  aria-label="View Notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute top-11 right-0 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-4 z-50 text-left">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-4 h-4 text-cyan-400" />
+                        <span className="text-xs font-bold text-white">Notifications ({unreadCount})</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <button onClick={markAllRead} className="text-cyan-400 hover:underline">Mark read</button>
+                        <button onClick={clearNotifications} className="text-slate-500 hover:text-red-400">Clear</button>
+                      </div>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto divide-y divide-slate-800/80 py-2 space-y-1">
+                      {notifications.length === 0 ? (
+                        <p className="text-xs text-slate-500 py-4 text-center">No notifications</p>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => {
+                              if (n.link) onNavigate(n.link);
+                              setShowNotifications(false);
+                            }}
+                            className={`p-2.5 rounded-xl transition-colors cursor-pointer text-xs ${
+                              n.read ? 'hover:bg-slate-800/40 text-slate-400' : 'bg-cyan-950/20 hover:bg-cyan-950/40 text-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between font-semibold text-white mb-0.5">
+                              <span>{n.title}</span>
+                              <span className="text-[10px] text-slate-500">{n.time}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 leading-relaxed">{n.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Theme Switcher Button */}
               <button
                 onClick={toggleTheme}
@@ -783,6 +885,16 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           </div>
 
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#212121] transition-colors relative"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              )}
+            </button>
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-[#212121] transition-colors"
