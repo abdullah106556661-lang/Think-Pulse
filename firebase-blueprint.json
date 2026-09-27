@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Registered ThinkPulse user profile with role and quota settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique Firebase Authentication user ID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Display name of the user" },
+        "photoURL": { "type": "string", "description": "Avatar photo URL" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "Access control role" },
+        "plan": { "type": "string", "enum": ["free", "basic", "pro", "premium", "enterprise"], "description": "Subscription tier" },
+        "tokensUsed": { "type": "number", "description": "Tokens consumed this billing period" },
+        "tokensRemaining": { "type": "number", "description": "Remaining tokens" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Profile creation timestamp" },
+        "lastLoginAt": { "type": "string", "format": "date-time", "description": "Last sign-in timestamp" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Project": {
+      "title": "Generated Project",
+      "description": "Autonomous AI-generated website or application project",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Project ID" },
+        "userId": { "type": "string", "description": "UID of the owner" },
+        "title": { "type": "string", "description": "Project title" },
+        "prompt": { "type": "string", "description": "Original generation prompt" },
+        "slug": { "type": "string", "description": "URL slug for live deployment" },
+        "code": { "type": "string", "description": "HTML/CSS/JS source bundle" },
+        "liveUrl": { "type": "string", "description": "Public URL where deployed" },
+        "isDeployed": { "type": "boolean", "description": "Whether live on Edge" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Update timestamp" }
+      },
+      "required": ["id", "userId", "title"]
+    },
+    "Generation": {
+      "title": "AI Generation Record",
+      "description": "Record of multimodal generation (text, image, video, music, transcription)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Generation record ID" },
+        "userId": { "type": "string", "description": "UID of the requester" },
+        "tool": { "type": "string", "enum": ["chat", "image", "video", "music", "transcribe", "builder"], "description": "Tool type" },
+        "prompt": { "type": "string", "description": "User prompt" },
+        "modelUsed": { "type": "string", "description": "Model identifier" },
+        "status": { "type": "string", "enum": ["success", "failed", "processing"], "description": "Execution status" },
+        "resultUrl": { "type": "string", "description": "URL or preview data of result" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp" }
+      },
+      "required": ["id", "userId", "tool", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "entities/User" },
+      "description": "User profile documents keyed by Firebase auth UID"
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "entities/Project" },
+      "description": "User projects and deployments"
+    },
+    "/generations/{generationId}": {
+      "schema": { "$ref": "entities/Generation" },
+      "description": "User multimodal generation history"
+    }
+  }
+}

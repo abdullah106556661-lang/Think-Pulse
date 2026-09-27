@@ -9,6 +9,8 @@ import { WebsiteBuilderView } from './components/WebsiteBuilderView';
 import { AppBuilderView } from './components/AppBuilderView';
 import { ImageStudioView } from './components/ImageStudioView';
 import { VideoStudioView } from './components/VideoStudioView';
+import { MusicStudioView } from './components/MusicStudioView';
+import { AudioTranscribeView } from './components/AudioTranscribeView';
 import { VoiceStudioView } from './components/VoiceStudioView';
 import { DocumentAIView } from './components/DocumentAIView';
 import { LibraryView } from './components/LibraryView';
@@ -457,6 +459,10 @@ export default function App() {
               localStorage.setItem('thinkpulse_conversations', JSON.stringify(updated));
             }}
             onNewChat={handleNewChat}
+            user={user}
+            onSelectConv={handleSelectConv}
+            onDeleteConv={handleDeleteConv}
+            onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
           />
         )}
 
@@ -487,6 +493,20 @@ export default function App() {
 
         {currentView === 'dashboard-video' && (
           <VideoStudioView
+            onSaveToLibrary={handleSaveToLibrary}
+          />
+        )}
+
+        {currentView === 'dashboard-music' && (
+          <MusicStudioView
+            user={user}
+            onSaveToLibrary={handleSaveToLibrary}
+          />
+        )}
+
+        {currentView === 'dashboard-transcribe' && (
+          <AudioTranscribeView
+            user={user}
             onSaveToLibrary={handleSaveToLibrary}
           />
         )}

@@ -3,30 +3,38 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "/api?__v_path=$1"
     },
     {
       "source": "/site/(.*)",
-      "destination": "/api"
+      "destination": "/api?__v_path=site/$1"
     },
     {
       "source": "/app/(.*)",
-      "destination": "/api"
+      "destination": "/api?__v_path=app/$1"
     },
     {
       "source": "/deployed/(.*)",
-      "destination": "/api"
+      "destination": "/api?__v_path=deployed/$1"
     },
     {
       "source": "/robots.txt",
-      "destination": "/api"
+      "destination": "/api?__v_path=robots.txt"
     },
     {
       "source": "/sitemap.xml",
-      "destination": "/api"
+      "destination": "/api?__v_path=sitemap.xml"
     },
     {
-      "source": "/((?!api|site|app|deployed|robots\\.txt|sitemap\\.xml).*)",
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/(.*\\.[a-zA-Z0-9]+)$",
+      "destination": "/$1"
+    },
+    {
+      "source": "/((?!api|site|app|deployed|assets).*)",
       "destination": "/index.html"
     }
   ]

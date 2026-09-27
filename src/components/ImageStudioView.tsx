@@ -18,6 +18,9 @@ import {
   Layers,
   Sliders,
   Copy,
+  Link2,
+  ExternalLink,
+  Send,
 } from 'lucide-react';
 
 interface ImageStudioProps {
@@ -36,7 +39,11 @@ export const ImageStudioView: React.FC<ImageStudioProps> = ({ onSaveToLibrary })
   const [activePrompt, setActivePrompt] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<GeneratedImageItem | null>(null);
+  const [shareModalItem, setShareModalItem] = useState<GeneratedImageItem | null>(null);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Gallery of generated images
   const [gallery, setGallery] = useState<GeneratedImageItem[]>([
@@ -164,19 +171,100 @@ export const ImageStudioView: React.FC<ImageStudioProps> = ({ onSaveToLibrary })
     }
   };
 
-  const handleDownload = (item: GeneratedImageItem) => {
-    const a = document.createElement('a');
-    a.href = item.imageUrl;
-    a.download = `thinkpulse-ai-${item.id}.jpg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((current) => (current === msg ? null : current));
+    }, 2800);
   };
 
-  const handleCopyPrompt = (text: string) => {
+  // Direct device download using Blob to ensure browser saves file directly to device
+  const handleDownload = async (item: GeneratedImageItem) => {
+    try {
+      showToast('Preparing download to your device...');
+      
+      // If it's a data URL, directly download
+      if (item.imageUrl.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = item.imageUrl;
+        a.download = `thinkpulse-art-${item.id}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('✅ Image saved directly to your device!');
+        return;
+      }
+
+      // Fetch blob to enforce direct file save
+      const res = await fetch(item.imageUrl, { mode: 'cors' }).catch(() => null);
+      if (res && res.ok) {
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `thinkpulse-art-${item.id}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+        showToast('✅ Image downloaded to your device!');
+      } else {
+        // Fallback for strict CORS images
+        const a = document.createElement('a');
+        a.href = item.imageUrl;
+        a.download = `thinkpulse-art-${item.id}.jpg`;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('✅ Image download started!');
+      }
+    } catch {
+      const a = document.createElement('a');
+      a.href = item.imageUrl;
+      a.download = `thinkpulse-art-${item.id}.jpg`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('✅ Image download initiated!');
+    }
+  };
+
+  // Copy prompt with visual feedback
+  const handleCopyPrompt = (text: string, id?: string) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
-    setCopiedPrompt(true);
-    setTimeout(() => setCopiedPrompt(false), 2000);
+    if (id) {
+      setCopiedPromptId(id);
+      setTimeout(() => setCopiedPromptId(null), 2000);
+    } else {
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 2000);
+    }
+    showToast('📋 Generation prompt copied to clipboard!');
+  };
+
+  // Share functionality with Web Share API and Social Integration Modal
+  const handleShare = async (item: GeneratedImageItem) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'ThinkPulse AI Generated Artwork',
+          text: `Generated with ThinkPulse AI: "${item.prompt}"`,
+          url: item.imageUrl,
+        });
+        showToast('Shared successfully!');
+        return;
+      } catch (err: any) {
+        // User cancelled or unsupported, fallback to modal
+        if (err.name !== 'AbortError') {
+          setShareModalItem(item);
+        }
+      }
+    } else {
+      setShareModalItem(item);
+    }
   };
 
   const aspectRatios = ['1:1', '16:9', '9:16', '4:3'];
@@ -486,18 +574,31 @@ export const ImageStudioView: React.FC<ImageStudioProps> = ({ onSaveToLibrary })
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
                         <button
-                          onClick={() => handleCopyPrompt(heroImage.prompt)}
+                          onClick={() => handleCopyPrompt(heroImage.prompt, heroImage.id)}
                           className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                          title="Copy prompt"
+                          title="Copy generation prompt"
                         >
-                          {copiedPrompt ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{copiedPrompt ? 'Copied' : 'Prompt'}</span>
+                          {copiedPromptId === heroImage.id || copiedPrompt ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                          <span>{copiedPromptId === heroImage.id || copiedPrompt ? 'Copied!' : 'Copy Prompt'}</span>
+                        </button>
+                        <button
+                          onClick={() => handleShare(heroImage)}
+                          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title="Share artwork on social media"
+                        >
+                          <Share2 className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Share</span>
                         </button>
                         <button
                           onClick={() => setPreviewImage(heroImage)}
                           className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title="Zoom preview"
                         >
                           <Maximize2 className="w-3.5 h-3.5" />
                           <span>Zoom</span>
@@ -505,6 +606,7 @@ export const ImageStudioView: React.FC<ImageStudioProps> = ({ onSaveToLibrary })
                         <button
                           onClick={() => handleDownload(heroImage)}
                           className="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-cyan-500/25 transition-all cursor-pointer"
+                          title="Save image directly to device"
                         >
                           <Download className="w-3.5 h-3.5" />
                           <span>Download HD</span>
@@ -574,18 +676,36 @@ export const ImageStudioView: React.FC<ImageStudioProps> = ({ onSaveToLibrary })
 
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <button
+                          onClick={() => handleCopyPrompt(item.prompt, item.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                          title="Copy prompt"
+                        >
+                          {copiedPromptId === item.id ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleShare(item)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors"
+                          title="Share image"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDownload(item)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors"
+                          title="Download directly to device"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => setPreviewImage(item)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
                           title="View Fullscreen"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDownload(item)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors"
-                          title="Download Image"
-                        >
-                          <Download className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -622,24 +742,203 @@ export const ImageStudioView: React.FC<ImageStudioProps> = ({ onSaveToLibrary })
             </div>
             <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <p className="text-xs text-slate-300 max-w-2xl">{previewImage.prompt}</p>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
                 <button
-                  onClick={() => handleCopyPrompt(previewImage.prompt)}
-                  className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  onClick={() => handleCopyPrompt(previewImage.prompt, 'preview')}
+                  className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Copy className="w-4 h-4" />
-                  <span>Copy Prompt</span>
+                  {copiedPromptId === 'preview' ? (
+                    <Check className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                  <span>{copiedPromptId === 'preview' ? 'Copied!' : 'Copy Prompt'}</span>
+                </button>
+                <button
+                  onClick={() => handleShare(previewImage)}
+                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Share artwork on social platforms"
+                >
+                  <Share2 className="w-4 h-4 text-cyan-400" />
+                  <span>Share</span>
                 </button>
                 <button
                   onClick={() => handleDownload(previewImage)}
-                  className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition-all"
+                  className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
+                  title="Save directly to device"
                 >
                   <Download className="w-4 h-4" />
-                  <span>Download Full Resolution</span>
+                  <span>Download to Device</span>
                 </button>
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Social Integration Share Modal */}
+      {shareModalItem && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+          <div className="max-w-md w-full bg-[#0d1117] border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <Share2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white font-heading">Share Artwork</h3>
+                  <p className="text-[11px] text-slate-400">Share your AI generation across social media</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShareModalItem(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Thumbnail Preview */}
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+              <img
+                src={shareModalItem.imageUrl}
+                alt="Share preview"
+                className="w-16 h-16 rounded-xl object-cover border border-slate-800 shrink-0"
+              />
+              <div className="overflow-hidden">
+                <p className="text-xs text-white line-clamp-2 font-medium leading-relaxed">
+                  {shareModalItem.prompt}
+                </p>
+                <span className="text-[10px] text-cyan-400 font-mono">
+                  {shareModalItem.aspectRatio} • {shareModalItem.resolution || '1K HD'}
+                </span>
+              </div>
+            </div>
+
+            {/* Social Sharing Channels Grid */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                Quick Social Share:
+              </span>
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* WhatsApp */}
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                    `Check out this AI image generated with ThinkPulse AI:\n"${shareModalItem.prompt}"\n\n${shareModalItem.imageUrl}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-600/40 text-emerald-200 text-xs font-semibold transition-all hover:scale-[1.02]"
+                >
+                  <Send className="w-4 h-4 text-emerald-400" />
+                  <span>WhatsApp</span>
+                </a>
+
+                {/* X (Twitter) */}
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                    `AI Artwork generated with @ThinkPulseAI:\n"${shareModalItem.prompt}"`
+                  )}&url=${encodeURIComponent(shareModalItem.imageUrl)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white text-xs font-semibold transition-all hover:scale-[1.02]"
+                >
+                  <span className="font-bold text-sm">𝕏</span>
+                  <span>Twitter / X</span>
+                </a>
+
+                {/* Facebook */}
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModalItem.imageUrl)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-blue-950/40 hover:bg-blue-900/60 border border-blue-600/40 text-blue-200 text-xs font-semibold transition-all hover:scale-[1.02]"
+                >
+                  <ExternalLink className="w-4 h-4 text-blue-400" />
+                  <span>Facebook</span>
+                </a>
+
+                {/* Telegram */}
+                <a
+                  href={`https://t.me/share/url?url=${encodeURIComponent(shareModalItem.imageUrl)}&text=${encodeURIComponent(
+                    `ThinkPulse AI Generation: "${shareModalItem.prompt}"`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-sky-950/40 hover:bg-sky-900/60 border border-sky-600/40 text-sky-200 text-xs font-semibold transition-all hover:scale-[1.02]"
+                >
+                  <Send className="w-4 h-4 text-sky-400" />
+                  <span>Telegram</span>
+                </a>
+
+                {/* LinkedIn */}
+                <a
+                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareModalItem.imageUrl)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="col-span-2 flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#0a2540]/60 hover:bg-[#0a2540] border border-blue-500/40 text-blue-200 text-xs font-semibold transition-all hover:scale-[1.01]"
+                >
+                  <ExternalLink className="w-4 h-4 text-blue-400" />
+                  <span>Share on LinkedIn</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Direct Copy Actions */}
+            <div className="pt-2 border-t border-slate-800 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={shareModalItem.imageUrl}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-[11px] text-slate-300 font-mono truncate focus:outline-none"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareModalItem.imageUrl);
+                    setCopiedShareLink(true);
+                    setTimeout(() => setCopiedShareLink(false), 2000);
+                    showToast('Link copied to clipboard!');
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+                >
+                  {copiedShareLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Link2 className="w-3.5 h-3.5" />}
+                  <span>{copiedShareLink ? 'Copied' : 'Copy Link'}</span>
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    handleCopyPrompt(shareModalItem.prompt);
+                    setShareModalItem(null);
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy Prompt</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleDownload(shareModalItem);
+                    setShareModalItem(null);
+                  }}
+                  className="flex-1 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-cyan-500/20 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download File</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Feedback Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-cyan-500/40 text-cyan-200 text-xs font-semibold shadow-2xl backdrop-blur-md animate-fadeIn">
+          <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>

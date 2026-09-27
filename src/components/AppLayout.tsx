@@ -41,6 +41,7 @@ import {
   Moon,
   Bell,
   CheckCheck,
+  Mic,
 } from 'lucide-react';
 import {
   exportConversationAsJSON,
@@ -199,10 +200,25 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     },
     {
       id: 'dashboard-video',
-      label: 'Veo / Sora Video Studio',
-      description: 'Cinematic AI video generation',
+      label: 'Veo 3 Video Studio',
+      description: 'Cinematic AI video synthesis & photo animator',
       icon: Video,
-      badge: 'VEO 3',
+      badge: 'VEO 3.1',
+    },
+    {
+      id: 'dashboard-music',
+      label: 'Lyria Music Studio',
+      description: 'Generate music clips & full tracks',
+      icon: Music,
+      badge: 'LYRIA 3',
+      isSpecial: true,
+    },
+    {
+      id: 'dashboard-transcribe',
+      label: 'Audio Transcribe',
+      description: 'Microphone speech & file transcription',
+      icon: Mic,
+      badge: 'SPEECH',
     },
     {
       id: 'dashboard-website',
@@ -270,10 +286,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     });
   }
 
-  // Filter conversations based on search
-  const filteredConversations = conversations.filter((c) =>
-    c.title.toLowerCase().includes(searchFilter.toLowerCase())
-  );
+  // Filter conversations based on search (searches both conversation title and message content)
+  const filteredConversations = conversations.filter((c) => {
+    const q = searchFilter.toLowerCase().trim();
+    if (!q) return true;
+    if (c.title?.toLowerCase().includes(q)) return true;
+    return c.messages?.some((m) => m.content?.toLowerCase().includes(q));
+  });
 
   // Group conversations chronologically (Today, Yesterday, Previous 7 Days, Older)
   const now = Date.now();

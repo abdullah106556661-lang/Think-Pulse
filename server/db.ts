@@ -1085,6 +1085,27 @@ class PersistentDatabase {
   public getAllGenerations(limit = 100): DbGenerationRecord[] {
     return this.data.generations.slice(0, limit);
   }
+
+  // --- Remote Database & Supabase Status ---
+  public getDatabaseStatus() {
+    const supabaseUrl = process.env.SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+    const isSupabase = Boolean(supabaseUrl);
+    return {
+      provider: isSupabase ? 'supabase_hybrid' : 'local_json',
+      dbFile: DB_FILE,
+      isLoaded: this.isLoaded,
+      isVercel: isVercelEnvironment,
+      remoteUrlConfigured: Boolean(REMOTE_DATABASE_URL),
+      remoteUrl: REMOTE_DATABASE_URL ? (REMOTE_DATABASE_URL.includes('@') ? REMOTE_DATABASE_URL.replace(/:[^:]*@/, ':***@') : REMOTE_DATABASE_URL) : '',
+      supabaseConfigured: isSupabase,
+      firebaseConfigured: true,
+      usersCount: Object.keys(this.data.users).length,
+      paymentsCount: this.data.payments.length,
+      projectsCount: Object.keys(this.data.projects).length,
+      lastSaved: new Date().toISOString(),
+    };
+  }
 }
 
 export const db = new PersistentDatabase();

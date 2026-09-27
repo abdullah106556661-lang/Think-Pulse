@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ThinkPulseLogo } from './ThinkPulseLogo';
 import { ViewMode, User } from '../types';
+import { signInWithGoogle } from '../firebase';
 import {
   Mail,
   Lock,
@@ -153,6 +154,39 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const fbUser = await signInWithGoogle();
+      const res = await fetch('/api/auth/firebase-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: fbUser.uid,
+          email: fbUser.email,
+          displayName: fbUser.displayName,
+          photoURL: fbUser.photoURL,
+        }),
+      });
+      const data = await safeJson(res, 'Authentication sync failed');
+
+      localStorage.setItem('thinkpulse_token', data.token);
+      localStorage.setItem('thinkpulse_auth_token', data.token);
+      localStorage.setItem('thinkpulse_user', JSON.stringify(data.user));
+      onSuccess(data.user, data.token);
+    } catch (err: any) {
+      console.error('Google Sign-In Error:', err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Sign-in popup was closed before completion. Please try again.');
+      } else {
+        setError(err.message || 'Google Sign-in failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#07090e] flex flex-col justify-center py-12 sm:px-6 lg:px-8 selection:bg-cyan-500/30 selection:text-cyan-200">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
@@ -240,6 +274,46 @@ export const AuthView: React.FC<AuthViewProps> = ({
             <div className="mb-5 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
               <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
               <span>{successMsg}</span>
+            </div>
+          )}
+
+          {(mode === 'login' || mode === 'signup') && (
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-750 hover:bg-slate-800 text-slate-100 border border-slate-700 hover:border-slate-600 font-medium text-sm flex items-center justify-center gap-3 transition-all shadow-md group disabled:opacity-50"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.66-5.17 3.66-9.12z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.13C3.26 21.4 7.36 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.57H1.25C.45 8.16 0 9.97 0 12s.45 3.84 1.25 5.43l4.03-3.14z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.6 1.25 6.57l4.03 3.14c.95-2.83 3.6-4.96 6.72-4.96z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-800" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-slate-900 px-3 text-slate-500 font-medium">Or continue with email</span>
+                </div>
+              </div>
             </div>
           )}
 

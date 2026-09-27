@@ -19,8 +19,8 @@ app.use(cookieParser());
 
 // Normalize URL path for Vercel / serverless environment rewrites
 app.use((req, res, next) => {
-  const forwarded = req.headers['x-forwarded-uri'] || req.headers['x-matched-path'];
-  if (typeof forwarded === 'string' && forwarded.startsWith('/api') && req.url !== forwarded) {
+  const forwarded = req.headers['x-forwarded-uri'] || req.headers['x-matched-path'] || req.headers['x-real-origin-path'];
+  if (typeof forwarded === 'string' && forwarded.length > 0 && req.url !== forwarded) {
     req.url = forwarded;
   }
   next();
@@ -230,17 +230,17 @@ async function safeGenerateText(options: {
   model?: string;
   config?: any;
   fallbackText?: () => string;
-}): Promise<{ text: string; modelUsed: string }> {
+}): Promise<{ text: string; modelUsed: string; groundingSources?: Array<{ type: 'web' | 'maps'; title: string; url: string }> }> {
   const ai = getGeminiClient();
   let requestedModel = options.model || DEFAULT_TEXT_MODEL;
 
   // Model fallback waterfall:
-  // 1. Requested model (e.g. gemini-3.8-flash, gemini-3.1-pro-preview)
-  // 2. High-availability flash (gemini-3.8-flash)
+  // 1. Requested model (e.g. gemini-3.8-flash, gemini-3.5-flash, gemini-3.1-pro-preview)
+  // 2. High-availability flash (gemini-3.5-flash / gemini-3.8-flash)
   // 3. Ultra-fast lite (gemini-3.1-flash-lite)
   // 4. Resilient flash alias (gemini-flash-latest)
   const candidateModels = Array.from(
-    new Set([requestedModel, 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'])
+    new Set([requestedModel, 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'])
   );
 
   for (let i = 0; i < candidateModels.length; i++) {
@@ -263,13 +263,31 @@ async function safeGenerateText(options: {
         });
 
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('AI Model request timed out')), 3500)
+          setTimeout(() => reject(new Error('AI Model request timed out')), 4500)
         );
 
         const res: any = await Promise.race([generatePromise, timeoutPromise]);
 
         if (res.text && res.text.trim().length > 0) {
-          return { text: res.text, modelUsed: toWhiteLabelModelName(currentModel) };
+          const groundingSources: Array<{ type: 'web' | 'maps'; title: string; url: string }> = [];
+          const chunks = res.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+          for (const chunk of chunks) {
+            if (chunk.web?.uri) {
+              groundingSources.push({
+                type: 'web',
+                title: chunk.web.title || chunk.web.uri,
+                url: chunk.web.uri,
+              });
+            }
+            if (chunk.maps?.uri) {
+              groundingSources.push({
+                type: 'maps',
+                title: chunk.maps.title || 'Google Maps Location',
+                url: chunk.maps.uri,
+              });
+            }
+          }
+          return { text: res.text, modelUsed: toWhiteLabelModelName(currentModel), groundingSources };
         }
       } catch (err: any) {
         const errStr = typeof err?.message === 'string' ? err.message : JSON.stringify(err || '');
@@ -911,6 +929,84 @@ app.post('/api/auth/admin-login', (req, res) => {
   }
 });
 
+// Firebase Authentication Sync Endpoint (Syncs Google Auth users with backend)
+app.post('/api/auth/firebase-sync', (req, res) => {
+  try {
+    const { uid, email, displayName, photoURL } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required for Firebase auth sync.' });
+    }
+
+    const emailNorm = email.toLowerCase().trim();
+    const isMasterAdmin = emailNorm === MASTER_ADMIN_EMAIL;
+    let user = db.getUserByEmail(emailNorm);
+
+    if (!user) {
+      // Create new user profile in database
+      user = db.createUser({
+        name: displayName || emailNorm.split('@')[0],
+        email: emailNorm,
+        passwordHash: '',
+        role: isMasterAdmin ? 'admin' : 'user',
+        plan: isMasterAdmin ? 'premium' : 'pro',
+        status: 'active',
+        isEmailVerified: true,
+        unlimited: isMasterAdmin,
+        unlimitedAccess: isMasterAdmin,
+        tokensUsed: 0,
+        tokensRemaining: isMasterAdmin ? 999999999 : 500000,
+        monthlyLimit: isMasterAdmin ? 999999999 : 500000,
+        avatarUrl: photoURL || '',
+        lastLoginAt: new Date().toISOString(),
+      });
+      db.addAuditLog({
+        actorEmail: emailNorm,
+        action: 'FIREBASE_USER_REGISTERED',
+        status: 'success',
+        details: `User registered via Firebase Google Auth: ${emailNorm}`,
+        ip: req.ip,
+      });
+    } else {
+      // Update existing user login time and metadata
+      const updates: Partial<DbUser> = {
+        lastLoginAt: new Date().toISOString(),
+        isEmailVerified: true,
+      };
+      if (photoURL && !user.avatarUrl) updates.avatarUrl = photoURL;
+      if (displayName && (!user.name || user.name === user.email.split('@')[0])) updates.name = displayName;
+      if (isMasterAdmin && user.role !== 'admin') {
+        updates.role = 'admin';
+        updates.plan = 'premium';
+        updates.unlimited = true;
+      }
+      db.updateUser(emailNorm, updates);
+      user = { ...user, ...updates };
+    }
+
+    if (!user) {
+      return res.status(500).json({ error: 'Failed to synchronize user account' });
+    }
+
+    const session = db.createSession(user, req.headers['user-agent'], req.ip, true);
+
+    res.cookie('thinkpulse_session', session.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      token: session.token,
+      user: toSafeUser(user),
+      message: 'Firebase Google authentication synchronized successfully.',
+    });
+  } catch (err: any) {
+    db.logError('/api/auth/firebase-sync', err.message, err.stack);
+    res.status(500).json({ error: err.message || 'Firebase auth sync failed' });
+  }
+});
+
 // Logout
 app.post('/api/auth/logout', (req, res) => {
   try {
@@ -1334,9 +1430,18 @@ app.get('/api/admin/overview', (req, res) => {
       systemUptime: '99.99%',
       serverStatus: 'Operational',
       masterAdminEmail: MASTER_ADMIN_EMAIL,
+      database: db.getDatabaseStatus(),
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to load admin overview.' });
+  }
+});
+
+app.get('/api/admin/database-status', (req, res) => {
+  try {
+    res.json(db.getDatabaseStatus());
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to check database status' });
   }
 });
 
@@ -2312,12 +2417,12 @@ app.post('/api/chat', async (req, res) => {
     }
     
     // Support Google Search and Google Maps Grounding
+    // Note: googleMaps cannot be combined with googleSearch in the same request
     const tools: any[] = [];
-    if (webSearch) {
-      tools.push({ googleSearch: {} });
-    }
     if (mapsGrounding) {
       tools.push({ googleMaps: {} });
+    } else if (webSearch) {
+      tools.push({ googleSearch: {} });
     }
     if (tools.length > 0) {
       config.tools = tools;
@@ -2421,7 +2526,8 @@ app.post('/api/chat', async (req, res) => {
       modelUsed: toWhiteLabelModelName(result.modelUsed),
       generatedImage: inChatMessageImage,
       generatedApp: inChatMessageApp,
-      webSources: [],
+      groundingSources: result.groundingSources || [],
+      webSources: result.groundingSources || [],
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
@@ -3787,6 +3893,10 @@ async function startServer() {
     app.get('*', (req, res) => {
       if (req.path.startsWith('/api/')) {
         return res.status(404).json({ error: `API endpoint ${req.method} ${req.path} not found` });
+      }
+      // Never return index.html for static assets that fail to load
+      if (req.path.match(/\.(js|mjs|css|map|json|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot)$/i)) {
+        return res.status(404).send('Asset Not Found');
       }
       const indexHtmlPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexHtmlPath)) {

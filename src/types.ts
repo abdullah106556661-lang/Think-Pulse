@@ -131,6 +131,11 @@ export interface ChatMessage {
     code: string;
     appType?: string;
   };
+  groundingSources?: {
+    type: 'web' | 'maps';
+    title: string;
+    url: string;
+  }[];
   generatingStatus?: string;
 }
 
