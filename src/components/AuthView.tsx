@@ -179,6 +179,13 @@ export const AuthView: React.FC<AuthViewProps> = ({
       console.error('Google Sign-In Error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Sign-in popup was closed before completion. Please try again.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+        setError(
+          `Google sign-in is not enabled for ${currentDomain}. Add this domain in Firebase Console > Authentication > Settings > Authorized domains, then reload the app.`,
+        );
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Google sign-in is disabled. Enable the Google provider in Firebase Console > Authentication > Sign-in method.');
       } else {
         setError(err.message || 'Google Sign-in failed. Please try again.');
       }
