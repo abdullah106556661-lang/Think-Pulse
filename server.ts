@@ -3880,14 +3880,20 @@ async function startServer() {
 
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      // The Express middleware server does not expose Vite's WebSocket upgrade
-      // endpoint through the v0 preview proxy. Disable the HMR client here so
-      // it cannot repeatedly attempt a socket that can never open.
-      server: { middlewareMode: true, hmr: false },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+  const vite = await createViteServer({
+  // This Express server does not expose Vite's WebSocket upgrade endpoint
+  // through the preview proxy, so do not create an HMR client or watcher.
+  server: { middlewareMode: true, hmr: false, watch: null },
+  appType: 'spa',
+  });
+
+  // Vite can still inject its client when serving HTML in middleware mode.
+  // Return an inert module so the browser never attempts an unreachable HMR
+  // WebSocket connection in the preview environment.
+  app.get('/@vite/client', (_req, res) => {
+    res.type('application/javascript').send('');
+  });
+  app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     if (fs.existsSync(distPath)) {
