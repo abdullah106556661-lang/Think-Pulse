@@ -3881,7 +3881,10 @@ async function startServer() {
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      // The Express middleware server does not expose Vite's WebSocket upgrade
+      // endpoint through the v0 preview proxy. Disable the HMR client here so
+      // it cannot repeatedly attempt a socket that can never open.
+      server: { middlewareMode: true, hmr: false },
       appType: 'spa',
     });
     app.use(vite.middlewares);
