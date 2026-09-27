@@ -50,6 +50,23 @@ testFirestoreConnection();
  */
 export async function signInWithGoogle() {
   try {
+    // Firebase rejects popup auth before opening it when the current host is not
+    // listed under Authentication > Settings > Authorized domains. Avoid making
+    // that failing request from temporary preview hosts; email auth remains
+    // available there and production hosts can be explicitly allowlisted.
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    const isSupportedHost =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.endsWith('.firebaseapp.com') ||
+      hostname.endsWith('.web.app');
+
+    if (!isSupportedHost) {
+      const error = new Error(`Google sign-in is unavailable on ${hostname || 'this preview'}.`);
+      (error as Error & { code: string }).code = 'auth/unauthorized-domain';
+      throw error;
+    }
+
     const result = await signInWithPopup(auth, googleProvider);
     const fbUser = result.user;
 
