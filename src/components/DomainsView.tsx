@@ -81,6 +81,7 @@ export const DomainsView: React.FC<DomainsViewProps> = ({ user, onNavigateLogin,
   const [proofImageBase64, setProofImageBase64] = useState<string | null>(null);
   const [proofFileName, setProofFileName] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
@@ -91,10 +92,9 @@ export const DomainsView: React.FC<DomainsViewProps> = ({ user, onNavigateLogin,
   const [myRequests, setMyRequests] = useState<DomainRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
 
-  const getToken = () => localStorage.getItem('thinkpulse_token') || '';
+  const getToken = () => localStorage.getItem('thinkpulse_token') || localStorage.getItem('thinkpulse_auth_token') || '';
 
   const loadUserRequests = async () => {
-    if (!user) return;
     setLoadingRequests(true);
     try {
       const token = getToken();
@@ -173,9 +173,15 @@ export const DomainsView: React.FC<DomainsViewProps> = ({ user, onNavigateLogin,
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      onNavigateLogin?.();
-      return;
+    if (!user && !guestEmail.trim()) {
+      if (onNavigateAuth) {
+        onNavigateAuth();
+        return;
+      }
+      if (onNavigateLogin) {
+        onNavigateLogin();
+        return;
+      }
     }
 
     if (!selectedDomain) return;
@@ -210,6 +216,7 @@ export const DomainsView: React.FC<DomainsViewProps> = ({ user, onNavigateLogin,
           transactionId: transactionId.trim(),
           proofImageBase64: proofImageBase64 || undefined,
           notes: notes.trim() || undefined,
+          guestEmail: guestEmail.trim() || undefined,
         }),
       });
 
@@ -558,6 +565,19 @@ export const DomainsView: React.FC<DomainsViewProps> = ({ user, onNavigateLogin,
               </div>
 
               {/* Form fields */}
+              {!user && (
+                <div>
+                  <label className="text-slate-300 font-medium block mb-1">Your Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="yourname@gmail.com"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 mb-2"
+                  />
+                </div>
+              )}
               <div>
                 <label className="text-slate-300 font-medium block mb-1">Your Sender Mobile Number</label>
                 <input

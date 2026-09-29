@@ -15,8 +15,18 @@
       "unlimited": true,
       "unlimitedAccess": true,
       "createdAt": "2026-09-21T17:32:50.547Z",
-      "updatedAt": "2026-09-26T16:24:49.180Z",
-      "lastLoginAt": "2026-09-26T16:24:49.180Z"
+      "updatedAt": "2026-09-29T15:51:27.453Z",
+      "lastLoginAt": "2026-09-29T15:51:27.453Z",
+      "toolsUsed": [
+        "Gemini Chat",
+        "Voice Mode (لائیو بات)",
+        "Image Studio",
+        "Website Builder",
+        "Domain Registry",
+        "Video Studio",
+        "Sport AI"
+      ],
+      "lastLoginProvider": "google"
     },
     "demo@thinkpulse.ai": {
       "id": "usr_demo_account",
@@ -90,6 +100,16 @@
       "createdAt": "2026-09-26T16:24:49.181Z",
       "expiresAt": "2026-10-03T16:24:49.181Z",
       "userAgent": "curl/7.88.1",
+      "ip": "127.0.0.1"
+    },
+    "tp_adm_1790697087454_4md61teem6": {
+      "token": "tp_adm_1790697087454_4md61teem6",
+      "userId": "usr_master_admin",
+      "email": "abdullah106556661@gmail.com",
+      "role": "admin",
+      "createdAt": "2026-09-29T15:51:27.454Z",
+      "expiresAt": "2026-10-29T15:51:27.454Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
       "ip": "127.0.0.1"
     }
   },
@@ -188,6 +208,15 @@
     }
   ],
   "auditLogs": [
+    {
+      "actorEmail": "abdullah106556661@gmail.com",
+      "action": "USER_LOGIN",
+      "status": "success",
+      "details": "User logged in successfully",
+      "ip": "127.0.0.1",
+      "id": "audit_1790697087454_jw4i",
+      "timestamp": "2026-09-29T15:51:27.454Z"
+    },
     {
       "actorEmail": "abdullah106556661@gmail.com",
       "action": "AI_PROVIDER_HEALTH_ALERT",
@@ -296,5 +325,133 @@
   "loginAttempts": {},
   "projects": {},
   "domains": [],
-  "generations": []
+  "generations": [],
+  "backendLogs": [
+    {
+      "id": "blog_1790699022421_36h3",
+      "timestamp": "2026-09-29T16:23:42.421Z",
+      "level": "info",
+      "endpoint": "GET /api/health",
+      "message": "HTTP 200 completed in 1ms [127.0.0.1]",
+      "durationMs": 1
+    },
+    {
+      "id": "blog_1790698792936_63pt",
+      "timestamp": "2026-09-29T16:19:52.936Z",
+      "level": "info",
+      "endpoint": "GET /api/auth/me",
+      "message": "HTTP 304 completed in 1ms [127.0.0.1]",
+      "durationMs": 1
+    },
+    {
+      "id": "blog_1790698792302_h5i3",
+      "timestamp": "2026-09-29T16:19:52.302Z",
+      "level": "info",
+      "endpoint": "GET /api/auth/me",
+      "message": "HTTP 200 completed in 3ms [127.0.0.1]",
+      "durationMs": 3
+    },
+    {
+      "id": "blog_1790698712579_xmew",
+      "timestamp": "2026-09-29T16:18:32.579Z",
+      "level": "info",
+      "endpoint": "GET /api/admin/app-errors",
+      "message": "HTTP 200 completed in 1ms [127.0.0.1]",
+      "durationMs": 1
+    },
+    {
+      "id": "blog_1790698708675_x5wt",
+      "timestamp": "2026-09-29T16:18:28.675Z",
+      "level": "info",
+      "endpoint": "GET /api/admin/user-tool-activity",
+      "message": "HTTP 200 completed in 1ms [127.0.0.1]",
+      "durationMs": 1
+    },
+    {
+      "id": "blog_1790698702298_tpvk",
+      "timestamp": "2026-09-29T16:18:22.298Z",
+      "level": "info",
+      "endpoint": "GET /api/admin/system-build",
+      "message": "HTTP 200 completed in 2ms [127.0.0.1]",
+      "durationMs": 2
+    },
+    {
+      "id": "blog_1790698694876_ubse",
+      "timestamp": "2026-09-29T16:18:14.876Z",
+      "level": "info",
+      "endpoint": "GET /api/health",
+      "message": "HTTP 200 completed in 5ms [127.0.0.1]",
+      "durationMs": 5
+    }
+  ],
+  "conversations": {
+    "conv_1790698140270": {
+      "id": "conv_1790698140270",
+      "userId": "usr_master_admin",
+      "userEmail": "abdullah106556661@gmail.com",
+      "title": "assaiamoalikm",
+      "updatedAt": "2026-09-29T16:10:45.447Z",
+      "createdAt": "2026-09-29T16:12:17.184Z",
+      "model": "gemini-3.8-flash",
+      "thinkingEnabled": true,
+      "messages": [
+        {
+          "id": "msg_u_1790698165701",
+          "role": "user",
+          "content": "assaiamoalikm",
+          "timestamp": "2026-09-29T16:09:25.701Z"
+        },
+        {
+          "id": "msg_a_1790698245411",
+          "role": "assistant",
+          "content": "Wa Alaikum Assalam! How can I help you today?",
+          "timestamp": "2026-09-29T16:10:45.412Z",
+          "modelUsed": "ThinkPulse Fast"
+        }
+      ],
+      "status": "active"
+    },
+    "conv_1": {
+      "id": "conv_1",
+      "userId": "usr_master_admin",
+      "userEmail": "abdullah106556661@gmail.com",
+      "title": "Quantum Computing & Algorithms",
+      "updatedAt": "2026-09-29T14:49:53.892Z",
+      "createdAt": "2026-09-29T16:12:17.184Z",
+      "model": "gemini-3.8-flash",
+      "thinkingEnabled": true,
+      "messages": [
+        {
+          "id": "msg_1",
+          "role": "assistant",
+          "content": "Hello! I am **ThinkPulse AI (4o)**. How can I assist you with code, complex problem solving, creative synthesis, or deep reasoning today?",
+          "timestamp": "2026-09-29T14:49:53.892Z",
+          "modelUsed": "gemini-3.8-flash"
+        }
+      ],
+      "status": "active"
+    },
+    "conv_2": {
+      "id": "conv_2",
+      "userId": "usr_master_admin",
+      "userEmail": "abdullah106556661@gmail.com",
+      "title": "Cricket Tactical Playbook",
+      "updatedAt": "2026-09-28T15:49:53.892Z",
+      "createdAt": "2026-09-29T16:12:17.184Z",
+      "model": "gemini-3.8-flash",
+      "thinkingEnabled": true,
+      "messages": [
+        {
+          "id": "msg_2",
+          "role": "assistant",
+          "content": "Cricket tactical engine ready. Pitch report, death-over field placements, and bowling matchups loaded.",
+          "timestamp": "2026-09-28T15:49:53.892Z",
+          "modelUsed": "gemini-3.8-flash"
+        }
+      ],
+      "status": "active"
+    }
+  },
+  "archivedConversations": [],
+  "lastArchiveRun": "2026-09-29T16:19:12.066Z"
 }

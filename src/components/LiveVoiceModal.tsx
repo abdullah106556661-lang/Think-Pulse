@@ -309,25 +309,25 @@ export const LiveVoiceModal: React.FC<LiveVoiceModalProps> = ({
           onClose();
         }
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-2xl"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md"
     >
-      <div className="relative w-full max-w-2xl h-[90vh] max-h-[720px] rounded-3xl bg-gradient-to-b from-[#090d16] via-[#05070c] to-[#020306] border border-cyan-500/30 shadow-2xl shadow-cyan-950/60 flex flex-col justify-between overflow-hidden font-sans select-none">
+      <div className="relative w-full max-w-xl max-h-[85vh] rounded-3xl bg-[#090d16]/95 border border-cyan-500/40 shadow-2xl shadow-cyan-950/80 flex flex-col justify-between overflow-hidden font-sans select-none animate-fadeIn">
         
         {/* Top Header Bar */}
-        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/60">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-800/80 bg-slate-950/70">
           <div className="flex items-center gap-3">
             <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-heading font-extrabold text-white text-sm tracking-wide">
-                  ThinkPulse Live Baat Q/A
+                  ChatGPT Live Voice Mode
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-950/80 text-cyan-300 border border-cyan-500/40">
                   لائیو بات چیت
                 </span>
               </div>
-              <span className="text-[11px] text-slate-400">
-                Interactive Voice & Text Q/A (Urdu, English & Hindi)
+              <span className="text-[11px] text-cyan-400/90 font-medium">
+                Live spoken voice conversation (چیٹ میں نہیں لکھی جائے گی)
               </span>
             </div>
           </div>

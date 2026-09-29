@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="16" fill="#080c14" />
+  <rect x="2" y="2" width="60" height="60" rx="14" stroke="#06b6d4" stroke-width="2" stroke-opacity="0.4" />
+  <!-- Human Thinking Profile Silhouette -->
+  <path d="M18 50C18 46 20.5 43.5 24 42C27.5 40.5 30 39.5 30 36V34C27.5 33 25 30.5 24 26C23 25.5 21 24.5 21 22C21 19.5 22.5 18.5 23.5 18.5C23.5 14 26 9 34 9C42 9 46 14.5 46 22C46 29 42 33.5 38 35.5V38.5C38 41.5 42 43.5 46 45C50 46.5 52 48.5 52 53" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Synaptic Core Glowing Node -->
+  <circle cx="35" cy="23" r="5" fill="#38bdf8" />
+  <circle cx="35" cy="23" r="8" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2 3" opacity="0.6" />
+  <path d="M35 15V11M43 18L46.5 15M43 28L47 30M27 18L23.5 15" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+</svg>

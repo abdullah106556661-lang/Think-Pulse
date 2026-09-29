@@ -827,17 +827,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const isConversationEmpty = activeConv.messages.length === 0;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#212121] text-[#ececec] overflow-hidden relative">
-      {/* Top ChatGPT Header Bar */}
-      <div className="h-14 px-3 sm:px-6 border-b border-[#2d2d2d] bg-[#212121] flex items-center justify-between gap-2.5 shrink-0 z-20">
+    <div className="flex-1 flex flex-col h-full bg-gradient-to-b from-[#0b0f19] via-[#080c14] to-[#05070c] text-slate-100 overflow-hidden relative">
+      {/* Top Header Bar */}
+      <div className="h-14 px-3 sm:px-6 border-b border-slate-800/80 bg-[#0b0f19]/90 backdrop-blur-md flex items-center justify-between gap-2.5 shrink-0 z-20">
         <div className="flex items-center gap-2">
           {/* 3-Lines (Hamburger) Menu Button */}
           <button
             onClick={() => setShowSidebarDrawer(true)}
-            className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-[#2a2a2a] transition-colors border border-[#333333] cursor-pointer flex items-center justify-center shrink-0"
+            className="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-700/80 transition-colors border border-slate-700/80 cursor-pointer flex items-center justify-center shrink-0 shadow-sm"
             title="Chat Search, Navigation & User Details (تھری لائنز مینو)"
           >
-            <Menu className="w-4 h-4 text-slate-200" />
+            <Menu className="w-4 h-4 text-cyan-400" />
           </button>
 
           {/* Model Selector Dropdown with Website Brand: ThinkPulse 3.5, 3.1 Pro, etc. */}
@@ -847,7 +847,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 setShowModelDropdown(!showModelDropdown);
                 if (showRoleDropdown) setShowRoleDropdown(false);
               }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-[#2a2a2a] text-sm font-semibold text-[#ececec] transition-colors cursor-pointer border border-[#333333]"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/70 hover:bg-slate-750 hover:bg-slate-700 text-sm font-semibold text-white transition-all cursor-pointer border border-slate-700/80 hover:border-cyan-500/50 shadow-sm"
             >
               <div className="flex items-center gap-1.5">
                 <span className="text-white font-bold tracking-tight">ThinkPulse</span>
@@ -870,7 +870,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             {/* Model Popover Dropdown */}
             {showModelDropdown && (
-              <div className="absolute top-12 left-0 w-80 bg-[#171717] border border-[#333333] rounded-2xl p-2 shadow-2xl space-y-1 z-50 animate-fadeIn">
+              <div className="absolute top-12 left-0 w-80 bg-[#0c101c]/95 border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl space-y-1.5 z-50 animate-fadeIn backdrop-blur-xl">
                 {/* Option 1: ThinkPulse 3.5 (General) */}
                 <button
                   onClick={() => {
@@ -1148,18 +1148,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
               Autonomous Multimodal Intelligence • Urdu, Hindi & English
             </p>
 
-            {/* 4 ChatGPT Iconic Suggestion Cards in 2x2 Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            {/* 4 Suggestion Cards in 2x2 Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full">
               {suggestions.map((item, index) => {
                 const Icon = item.icon;
                 return (
                   <button
                     key={index}
                     onClick={() => handleSendMessage(item.prompt)}
-                    className="p-4 rounded-2xl bg-[#171717] hover:bg-[#262626] border border-[#2e2e2e] hover:border-[#404040] text-left transition-all duration-200 group flex items-start gap-3.5 shadow-sm"
+                    className="p-4 rounded-2xl bg-gradient-to-b from-slate-900/90 to-[#0e1424]/90 hover:from-slate-800 hover:to-[#141b2f] border border-slate-800 hover:border-cyan-500/40 text-left transition-all duration-200 group flex items-start gap-3.5 shadow-lg shadow-black/30 hover:shadow-cyan-950/20 hover:-translate-y-0.5"
                   >
                     <div
-                      className={`w-9 h-9 rounded-xl bg-[#222222] border border-[#333333] flex items-center justify-center shrink-0 ${item.color}`}
+                      className={`w-10 h-10 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-center shrink-0 shadow-sm ${item.color}`}
                     >
                       <Icon className="w-4 h-4" />
                     </div>
@@ -1177,7 +1177,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           </div>
         ) : (
-          /* State B: Active Message Stream (Authentic ChatGPT Layout) */
+          /* State B: Active Message Stream */
           <div className="max-w-3xl mx-auto w-full space-y-6 pb-6">
             {activeConv.messages.map((msg) => {
               const isUser = msg.role === 'user';
@@ -1185,18 +1185,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
               return (
                 <div key={msg.id} className="w-full">
                   {isUser ? (
-                    /* User Message: Right-Aligned Bubble (ChatGPT Style) */
+                    /* User Message: Right-Aligned Bubble */
                     <div className="flex justify-end pl-8">
-                      <div className="bg-[#2f2f2f] text-slate-100 rounded-[22px] px-5 py-3 max-w-[85%] sm:max-w-[75%] text-[15px] leading-relaxed shadow-sm break-words">
+                      <div className="bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-600 text-white rounded-[24px] rounded-br-[6px] px-5 py-3.5 max-w-[85%] sm:max-w-[75%] text-[15px] leading-relaxed shadow-lg shadow-cyan-950/40 break-words border border-cyan-400/20">
                         {/* Attachments preview */}
                         {msg.attachments && msg.attachments.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mb-2 pb-2 border-b border-white/10">
+                          <div className="flex flex-wrap gap-2 mb-2 pb-2 border-b border-white/20">
                             {msg.attachments.map((att, i) => (
                               <div
                                 key={i}
                                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/40 text-xs text-white"
                               >
-                                <Paperclip className="w-3.5 h-3.5 text-cyan-400" />
+                                <Paperclip className="w-3.5 h-3.5 text-cyan-200" />
                                 <span className="truncate max-w-[150px]">{att.name}</span>
                               </div>
                             ))}
@@ -1629,33 +1629,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )}
 
-          {/* The Capsule Pill Box (ChatGPT Design) */}
-          <div className="rounded-[26px] bg-[#2f2f2f] border border-[#3d3d3d] focus-within:border-[#5a5a5a] shadow-2xl p-2.5 flex flex-col gap-2 transition-all">
+          {/* The Capsule Pill Box (Modern Luxury Dark Design) */}
+          <div className="rounded-[28px] bg-gradient-to-b from-[#111728]/95 to-[#0b101d]/95 backdrop-blur-2xl border border-slate-700/80 focus-within:border-cyan-500/80 focus-within:ring-2 focus-within:ring-cyan-500/20 shadow-[0_14px_45px_rgba(0,0,0,0.65)] p-3 flex flex-col gap-2.5 transition-all">
             {/* AI Builder Quick Assistant Strips */}
             {builderMode && (
               <div className="flex items-center gap-1.5 px-2 pt-1 pb-0.5 overflow-x-auto text-[11px] scrollbar-none">
-                <span className="text-emerald-400 font-bold shrink-0 flex items-center gap-1">
+                <span className="text-amber-400 font-bold shrink-0 flex items-center gap-1">
                   <Sparkles className="w-3 h-3" />
                   <span>Builder:</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setInputText('Give me modern high-converting website prompts and complete section blueprints for my business')}
-                  className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 whitespace-nowrap transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 whitespace-nowrap transition cursor-pointer"
                 >
                   💡 Website Prompts
                 </button>
                 <button
                   type="button"
                   onClick={() => setInputText('Build a modern interactive SaaS landing page with dark theme, pricing table, and feature cards')}
-                  className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 whitespace-nowrap transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 whitespace-nowrap transition cursor-pointer"
                 >
                   ⚡ Interactive Landing Page
                 </button>
                 <button
                   type="button"
                   onClick={() => setInputText('Write app code for an interactive Kanban task management application')}
-                  className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 whitespace-nowrap transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 whitespace-nowrap transition cursor-pointer"
                 >
                   📱 Write App Code
                 </button>
@@ -1665,28 +1665,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {/* AI Image Ideas Quick Strips */}
             {imageGenMode && (
               <div className="flex items-center gap-1.5 px-2 pt-1 pb-0.5 overflow-x-auto text-[11px] scrollbar-none">
-                <span className="text-purple-400 font-bold shrink-0 flex items-center gap-1">
+                <span className="text-pink-400 font-bold shrink-0 flex items-center gap-1">
                   <ImageIcon className="w-3 h-3" />
                   <span>Image Ideas:</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setInputText('A cute fluffy white kitten with glowing cyan eyes sitting in cherry blossoms, 8k cinematic')}
-                  className="px-2.5 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 whitespace-nowrap transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 border border-pink-500/30 whitespace-nowrap transition cursor-pointer"
                 >
                   🐱 Cute Kitten
                 </button>
                 <button
                   type="button"
                   onClick={() => setInputText('Futuristic cyberpunk supercar racing through neon-lit rainy Tokyo streets, cinematic 8k')}
-                  className="px-2.5 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 whitespace-nowrap transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 border border-pink-500/30 whitespace-nowrap transition cursor-pointer"
                 >
                   🏎️ Cyberpunk Car
                 </button>
                 <button
                   type="button"
                   onClick={() => setInputText('Majestic snow-capped mountain range under a vibrant purple aurora borealis night sky')}
-                  className="px-2.5 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 whitespace-nowrap transition cursor-pointer"
+                  className="px-2.5 py-0.5 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 border border-pink-500/30 whitespace-nowrap transition cursor-pointer"
                 >
                   🌌 Aurora Landscape
                 </button>
@@ -1704,16 +1704,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   handleSendMessage();
                 }
               }}
-              placeholder={builderMode ? 'Describe the app, website, or prompt you need...' : imageGenMode ? 'Describe the image or artwork you want to create...' : t.sendPlaceholder}
+              placeholder={builderMode ? 'Describe the app, website, or prompt you need...' : imageGenMode ? 'Describe the image or artwork you want to create...' : 'Ask ThinkPulse anything, explore Google Maps, Search, or generate code...'}
               rows={1}
-              className="w-full bg-transparent px-3 py-1.5 text-[15px] text-[#ececec] placeholder-[#8e8e8e] focus:outline-none resize-none max-h-48 leading-relaxed"
+              className="w-full bg-transparent px-3 py-1.5 text-[15px] text-white placeholder-slate-400 focus:outline-none resize-none max-h-48 leading-relaxed selection:bg-cyan-500/30"
             />
 
             {/* Pill Tools Bottom Row */}
             <div className="flex items-center justify-between px-1">
-              {/* Left Tools (Attach, Search, Reason, Builder, Image) */}
+              {/* Left Tools (Attach, Search, Google Maps, Reason, Builder, Image) */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                {/* File Attachment Trigger */}
+                {/* File Attachment Trigger - Stylish glowing Plus Button */}
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -1725,13 +1725,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-[#3a3a3a] transition-colors cursor-pointer"
-                  title="Attach images, documents or audio"
+                  className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/35 hover:to-blue-500/35 border border-cyan-500/50 hover:border-cyan-400 text-cyan-300 hover:text-cyan-200 flex items-center justify-center transition-all shadow-sm shadow-cyan-950/50 cursor-pointer hover:scale-105 active:scale-95"
+                  title="Attach images, documents or audio (+)"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
                 </button>
 
-                {/* Web Search Grounding Toggle */}
+                {/* Google Search Grounding Toggle */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1739,14 +1739,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     setWebSearchEnabled(next);
                     if (next && mapsGroundingEnabled) setMapsGroundingEnabled(false);
                   }}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
                     webSearchEnabled
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#3a3a3a]'
+                      ? 'bg-gradient-to-r from-blue-500/30 via-cyan-500/25 to-blue-600/30 text-cyan-300 border border-cyan-400/60 shadow-cyan-950/60 ring-1 ring-cyan-400/30'
+                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 hover:border-cyan-500/40'
                   }`}
                   title="Google Search Grounding: Live factual web search data"
                 >
-                  <Globe className="w-3.5 h-3.5" />
+                  <Globe className={`w-3.5 h-3.5 ${webSearchEnabled ? 'text-cyan-400' : 'text-blue-400'}`} />
                   <span className="hidden sm:inline">Google Search</span>
                 </button>
 
@@ -1758,14 +1758,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     setMapsGroundingEnabled(next);
                     if (next && webSearchEnabled) setWebSearchEnabled(false);
                   }}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
                     mapsGroundingEnabled
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#3a3a3a]'
+                      ? 'bg-gradient-to-r from-emerald-500/30 via-teal-500/25 to-emerald-600/30 text-emerald-300 border border-emerald-400/60 shadow-emerald-950/60 ring-1 ring-emerald-400/30'
+                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 hover:border-emerald-500/40'
                   }`}
                   title="Google Maps Grounding: Location, address & navigation data"
                 >
-                  <MapPin className="w-3.5 h-3.5" />
+                  <MapPin className={`w-3.5 h-3.5 ${mapsGroundingEnabled ? 'text-emerald-400' : 'text-emerald-400/90'}`} />
                   <span className="hidden sm:inline">Google Maps</span>
                 </button>
 
@@ -1773,14 +1773,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setThinkingEnabled(!thinkingEnabled)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
                     thinkingEnabled
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#3a3a3a]'
+                      ? 'bg-gradient-to-r from-purple-500/30 via-indigo-500/25 to-purple-600/30 text-purple-300 border border-purple-400/60 shadow-purple-950/60 ring-1 ring-purple-400/30'
+                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 hover:border-purple-500/40'
                   }`}
                   title="Toggle cognitive step-by-step reasoning"
                 >
-                  <Brain className="w-3.5 h-3.5" />
+                  <Brain className={`w-3.5 h-3.5 ${thinkingEnabled ? 'text-purple-400' : 'text-slate-400'}`} />
                   <span className="hidden sm:inline">Reason</span>
                 </button>
 
@@ -1792,14 +1792,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     setBuilderMode(next);
                     if (next && imageGenMode) setImageGenMode(false);
                   }}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
                     builderMode
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#3a3a3a]'
+                      ? 'bg-gradient-to-r from-amber-500/30 via-yellow-500/25 to-amber-600/30 text-amber-300 border border-amber-400/60 shadow-amber-950/60 ring-1 ring-amber-400/30'
+                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 hover:border-amber-500/40'
                   }`}
                   title="AI Web & App Builder: Write interactive app code or generate website blueprints & prompts"
                 >
-                  <Code className="w-3.5 h-3.5" />
+                  <Code className={`w-3.5 h-3.5 ${builderMode ? 'text-amber-400' : 'text-slate-400'}`} />
                   <span className="hidden sm:inline">AI Builder</span>
                 </button>
 
@@ -1811,67 +1811,71 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     setImageGenMode(next);
                     if (next && builderMode) setBuilderMode(false);
                   }}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
                     imageGenMode
-                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-[#3a3a3a]'
+                      ? 'bg-gradient-to-r from-fuchsia-500/30 via-pink-500/25 to-fuchsia-600/30 text-pink-300 border border-pink-400/60 shadow-pink-950/60 ring-1 ring-pink-400/30'
+                      : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 hover:border-pink-500/40'
                   }`}
                   title="Generate high-definition AI images"
                 >
-                  <ImageIcon className="w-3.5 h-3.5" />
+                  <ImageIcon className={`w-3.5 h-3.5 ${imageGenMode ? 'text-pink-400' : 'text-slate-400'}`} />
                   <span className="hidden sm:inline">Picture</span>
                 </button>
               </div>
 
               {/* Right Tools (Mic, Live Voice Call, Send / Stop) */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 {/* Speech Dictation Mic */}
                 <button
                   type="button"
                   onClick={toggleRecording}
-                  className={`p-2 rounded-full transition-all ${
+                  className={`p-2 rounded-full transition-all cursor-pointer ${
                     isRecording
-                      ? 'bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse'
-                      : 'text-slate-400 hover:text-white hover:bg-[#3a3a3a]'
+                      ? 'bg-red-500/25 text-red-400 border border-red-500/50 animate-pulse shadow-sm shadow-red-950'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
                   }`}
                   title="Speech-to-text dictation"
                 >
                   {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
 
-                {/* Advanced Voice Call Trigger (ChatGPT Voice Mode - لائیو بات چیت) */}
+                {/* Compact ChatGPT-Style Live Voice Waveform Button (لائیو بات) */}
                 {onOpenLiveVoice && (
                   <button
                     type="button"
                     onClick={onOpenLiveVoice}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-sm transition-all hover:scale-105 cursor-pointer"
+                    className="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700/80 hover:border-cyan-500/60 flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-105 group"
                     title="Live Voice Mode (ChatGPT Style - لائیو بات چیت)"
                   >
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                    <Headphones className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="hidden sm:inline">Voice Mode (لائیو بات)</span>
+                    {/* Compact ChatGPT Voice Waveform: 4 vertical lines of varying heights */}
+                    <div className="flex items-center justify-center gap-[2.5px] h-3.5">
+                      <span className="w-[2px] h-1.5 bg-cyan-400 rounded-full group-hover:h-3 transition-all" />
+                      <span className="w-[2px] h-3.5 bg-cyan-300 rounded-full group-hover:h-2 transition-all" />
+                      <span className="w-[2px] h-2 bg-cyan-400 rounded-full group-hover:h-3.5 transition-all" />
+                      <span className="w-[2px] h-3 bg-sky-300 rounded-full group-hover:h-2.5 transition-all" />
+                    </div>
                   </button>
                 )}
 
-                {/* Circular Send / Stop Button (ChatGPT Hallmark) */}
+                {/* Circular Send / Stop Button */}
                 {loading ? (
                   <button
                     type="button"
                     onClick={handleStopGeneration}
-                    className="w-8 h-8 rounded-full bg-white text-black hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-md"
+                    className="w-9 h-9 rounded-full bg-slate-800 text-white hover:bg-slate-700 border border-slate-700 flex items-center justify-center transition-all cursor-pointer shadow-md"
                     title="Stop generation"
                   >
-                    <Square className="w-3.5 h-3.5 fill-black" />
+                    <Square className="w-3.5 h-3.5 fill-white" />
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => handleSendMessage()}
                     disabled={!inputText.trim() && attachments.length === 0}
-                    className="w-8 h-8 rounded-full bg-white text-black hover:bg-slate-200 disabled:bg-[#424242] disabled:text-[#737373] disabled:cursor-not-allowed flex items-center justify-center transition-all shadow-md"
+                    className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed text-slate-950 font-bold flex items-center justify-center transition-all shadow-lg shadow-cyan-500/25 cursor-pointer hover:scale-105 active:scale-95"
                     title="Send message"
                   >
-                    <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+                    <ArrowUp className="w-4 h-4 stroke-[3]" />
                   </button>
                 )}
               </div>
@@ -2001,40 +2005,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
             onClick={() => setShowSidebarDrawer(false)}
           />
           {/* Slide-out Drawer Panel */}
-          <div className="relative w-80 sm:w-96 max-w-full bg-[#181818] border-r border-[#2d2d2d] h-full flex flex-col z-10 shadow-2xl animate-slideRight">
+          <div className="relative w-80 sm:w-96 max-w-full bg-[#0c101d] border-r border-slate-800 h-full flex flex-col z-10 shadow-2xl animate-slideRight">
             {/* Header */}
-            <div className="p-4 border-b border-[#282828] flex items-center justify-between">
+            <div className="p-4 border-b border-slate-800 bg-[#080c16] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <ThinkPulseLogo size="sm" />
                 <div>
                   <span className="text-xs font-bold text-white block">ThinkPulse AI</span>
-                  <span className="text-[10px] text-cyan-400">Autonomous Intelligence</span>
+                  <span className="text-[10px] text-cyan-400 font-medium">Autonomous Intelligence</span>
                 </div>
               </div>
               <button
                 onClick={() => setShowSidebarDrawer(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#242424] transition-colors cursor-pointer"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Quick Actions (New Chat & Dark/Light Mode) */}
-            <div className="p-3 border-b border-[#282828] space-y-2">
+            <div className="p-3 border-b border-slate-800 bg-[#0a0e19] space-y-2">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
                     onNewChat?.();
                     setShowSidebarDrawer(false);
                   }}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer"
+                  className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer hover:scale-102"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5]" />
                   <span>+ New Idea (نیا چیٹ / آئیڈیا)</span>
                 </button>
                 <button
                   onClick={toggleThemeMode}
-                  className="p-2 rounded-xl bg-[#242424] hover:bg-[#2f2f2f] text-slate-300 hover:text-amber-300 transition-colors border border-[#333] cursor-pointer"
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-300 transition-colors border border-slate-700 cursor-pointer shadow-sm"
                   title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                 >
                   {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-sky-400" />}
@@ -2049,7 +2053,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   value={drawerSearch}
                   onChange={(e) => setDrawerSearch(e.target.value)}
                   placeholder="Search in title or chat content..."
-                  className="w-full bg-[#111111] border border-[#2d2d2d] rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                  className="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
                 />
                 {drawerSearch && (
                   <button
@@ -2063,7 +2067,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* User Details Profile Card */}
-            <div className="p-3 border-b border-[#282828] bg-[#141414]">
+            <div className="p-3 border-b border-slate-800 bg-[#090d18]">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   User Account Details (یوزر تفصیلات)
@@ -2095,7 +2099,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* Chat Retention & Auto-Archive Section */}
-            <div className="p-3 border-b border-[#282828] bg-[#161616] space-y-2">
+            <div className="p-3 border-b border-slate-800 bg-[#0a0e1a] space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                   <Clock className="w-3 h-3 text-cyan-400" />

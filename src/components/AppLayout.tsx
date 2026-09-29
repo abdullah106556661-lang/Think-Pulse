@@ -236,9 +236,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     },
     {
       id: 'dashboard-voice',
-      label: 'Voice Lab & Audio',
-      description: 'Text-to-speech & multi-speaker clone',
+      label: 'Live Voice Mode (لائیو بات)',
+      description: 'ChatGPT realtime audio conversation (No page change)',
       icon: Radio,
+      badge: 'LIVE',
     },
     {
       id: 'dashboard-docs',
@@ -275,16 +276,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     },
   ];
 
-  if (isAdmin) {
-    gptTools.push({
-      id: 'dashboard-admin',
-      label: 'Super Admin Portal',
-      description: 'Security, user quota & telemetry',
-      icon: ShieldCheck,
-      badge: 'ADMIN',
-      isSpecial: true,
-    });
-  }
+  // Always expose Super Admin Portal with lock indicator when not verified
+  gptTools.push({
+    id: 'dashboard-admin',
+    label: 'Admin Dashboard (ایڈمن)',
+    description: 'Private user intelligence, Gmail accounts & backend telemetry',
+    icon: ShieldCheck,
+    badge: isAdmin ? 'ADMIN' : 'LOCK',
+    isSpecial: true,
+  });
 
   // Filter conversations based on search (searches both conversation title and message content)
   const filteredConversations = conversations.filter((c) => {
@@ -612,6 +612,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     <button
                       key={tool.id}
                       onClick={() => {
+                        if (tool.id === 'dashboard-voice' && onOpenLiveCall) {
+                          onOpenLiveCall();
+                          setMobileOpen(false);
+                          return;
+                        }
                         onNavigate(tool.id);
                         setMobileOpen(false);
                       }}

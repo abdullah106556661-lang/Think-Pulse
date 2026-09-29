@@ -23,6 +23,19 @@ export interface DbUser {
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
+  lastLoginIp?: string;
+  lastLoginProvider?: 'google' | 'email';
+  toolsUsed?: string[];
+  generationCount?: number;
+}
+
+export interface DbBackendLog {
+  id: string;
+  timestamp: string;
+  level: 'info' | 'warn' | 'error';
+  endpoint: string;
+  message: string;
+  durationMs?: number;
 }
 
 export interface DbSession {
@@ -192,6 +205,28 @@ export interface DbGenerationRecord {
   createdAt: string;
 }
 
+export interface DbConversation {
+  id: string;
+  userId?: string;
+  userEmail?: string;
+  title: string;
+  updatedAt: string;
+  createdAt: string;
+  model: string;
+  thinkingEnabled?: boolean;
+  messages: Array<{
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: string;
+    modelUsed?: string;
+    generatedImage?: any;
+    generatedApp?: any;
+  }>;
+  status: 'active' | 'archived';
+  archivedAt?: string;
+}
+
 interface DatabaseSchema {
   users: Record<string, DbUser>; // keyed by email (lowercase)
   sessions: Record<string, DbSession>; // keyed by token
@@ -206,6 +241,10 @@ interface DatabaseSchema {
   projects: Record<string, DbProject>;
   domains: DbDomainRequest[];
   generations: DbGenerationRecord[];
+  backendLogs: DbBackendLog[];
+  conversations: Record<string, DbConversation>;
+  archivedConversations: DbConversation[];
+  lastArchiveRun?: string;
 }
 
 const isVercelEnvironment = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
@@ -234,6 +273,25 @@ class PersistentDatabase {
   constructor() {
     this.data = this.getDefaultSchema();
     this.load();
+
+    // Background auto-retention manager: check conversations older than 30 days
+    // Initial run shortly after startup
+    setTimeout(() => {
+      try {
+        this.archiveOldConversations(30);
+      } catch (err) {
+        console.warn('[Retention Manager Boot Error]:', err);
+      }
+    }, 12000);
+
+    // Periodic background run every 6 hours
+    setInterval(() => {
+      try {
+        this.archiveOldConversations(30);
+      } catch (err) {
+        console.warn('[Retention Manager Periodic Error]:', err);
+      }
+    }, 6 * 60 * 60 * 1000);
   }
 
   private getDefaultSchema(): DatabaseSchema {
@@ -330,8 +388,53 @@ class PersistentDatabase {
         tokensRemaining: 999999999,
         unlimited: true,
         unlimitedAccess: true,
+        lastLoginProvider: 'google',
+        lastLoginAt: new Date().toISOString(),
+        lastLoginIp: '192.168.1.1 (Master Terminal)',
+        toolsUsed: ['Gemini Chat', 'Voice Mode (لائیو بات)', 'Image Studio', 'Website Builder', 'Domain Registry', 'Video Studio', 'Sport AI'],
+        generationCount: 42,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+      },
+      'zubair.khan88@gmail.com': {
+        id: 'usr_zubair_gmail',
+        name: 'Zubair Khan (Karachi Client)',
+        email: 'zubair.khan88@gmail.com',
+        passwordHash: demoHash,
+        role: 'user',
+        status: 'active',
+        isEmailVerified: true,
+        plan: 'pro',
+        tokensUsed: 45000,
+        monthlyLimit: 1000000,
+        tokensRemaining: 955000,
+        lastLoginProvider: 'google',
+        lastLoginAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+        lastLoginIp: '39.40.12.84 (PTCL Karachi)',
+        toolsUsed: ['Gemini Chat', 'Voice Mode (لائیو بات)', 'DALL-E 3 Image Studio'],
+        generationCount: 18,
+        createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
+        updatedAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
+      },
+      'hassan.tech55@gmail.com': {
+        id: 'usr_hassan_gmail',
+        name: 'Hassan Raza (Full-Stack Dev)',
+        email: 'hassan.tech55@gmail.com',
+        passwordHash: demoHash,
+        role: 'user',
+        status: 'active',
+        isEmailVerified: true,
+        plan: 'pro',
+        tokensUsed: 92000,
+        monthlyLimit: 1000000,
+        tokensRemaining: 908000,
+        lastLoginProvider: 'google',
+        lastLoginAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+        lastLoginIp: '110.36.21.102 (Nayatel Lahore)',
+        toolsUsed: ['Website Builder', 'Domain Registry', 'Veo Video Studio', 'Gemini Chat'],
+        generationCount: 29,
+        createdAt: new Date(Date.now() - 3600000 * 72).toISOString(),
+        updatedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
       },
       'demo@thinkpulse.ai': {
         id: 'usr_demo_account',
@@ -341,10 +444,15 @@ class PersistentDatabase {
         role: 'user',
         status: 'active',
         isEmailVerified: true,
-        plan: 'pro',
+        plan: 'free',
         tokensUsed: 12500,
-        monthlyLimit: 1000000,
-        tokensRemaining: 987500,
+        monthlyLimit: 100000,
+        tokensRemaining: 87500,
+        lastLoginProvider: 'email',
+        lastLoginAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+        lastLoginIp: '182.180.12.44 (Islamabad)',
+        toolsUsed: ['Gemini Chat', 'Sport AI'],
+        generationCount: 6,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -411,6 +519,10 @@ class PersistentDatabase {
       projects: {},
       domains: [],
       generations: [],
+      backendLogs: [],
+      conversations: {},
+      archivedConversations: [],
+      lastArchiveRun: new Date().toISOString(),
     };
   }
 
@@ -442,6 +554,9 @@ class PersistentDatabase {
           projects: parsed.projects || {},
           domains: parsed.domains || [],
           generations: parsed.generations || [],
+          conversations: parsed.conversations || {},
+          archivedConversations: parsed.archivedConversations || [],
+          lastArchiveRun: parsed.lastArchiveRun || new Date().toISOString(),
         };
       } else {
         this.save();
@@ -501,6 +616,12 @@ class PersistentDatabase {
       existing.unlimitedAccess = true;
       existing.status = 'active';
       existing.plan = 'premium';
+      if (!existing.toolsUsed || existing.toolsUsed.length === 0) {
+        existing.toolsUsed = ['Gemini Chat', 'Voice Mode (لائیو بات)', 'Image Studio', 'Website Builder', 'Domain Registry', 'Video Studio', 'Sport AI'];
+      }
+      if (!existing.lastLoginProvider) {
+        existing.lastLoginProvider = 'google';
+      }
     }
   }
 
@@ -1063,27 +1184,228 @@ class PersistentDatabase {
     return dom;
   }
 
-  // --- Generation Activity Records ---
+  // --- Generation Activity Records & Private User Inspector ---
   public addGenerationRecord(record: Omit<DbGenerationRecord, 'id' | 'createdAt'>): DbGenerationRecord {
     const rec: DbGenerationRecord = {
       ...record,
       id: `gen_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       createdAt: new Date().toISOString(),
     };
+    if (!this.data.generations) this.data.generations = [];
     this.data.generations.unshift(rec);
-    if (this.data.generations.length > 500) {
-      this.data.generations = this.data.generations.slice(0, 500);
+    if (this.data.generations.length > 1000) {
+      this.data.generations = this.data.generations.slice(0, 1000);
     }
+
+    // Associate tool used with the user account for private activity inspection
+    const targetUser = record.userEmail
+      ? this.getUserByEmail(record.userEmail)
+      : record.userId
+      ? this.getUserById(record.userId)
+      : null;
+
+    if (targetUser) {
+      if (!targetUser.toolsUsed) targetUser.toolsUsed = [];
+      if (!targetUser.toolsUsed.includes(record.tool)) {
+        targetUser.toolsUsed.push(record.tool);
+      }
+      targetUser.generationCount = (targetUser.generationCount || 0) + 1;
+      targetUser.tokensUsed = (targetUser.tokensUsed || 0) + 150;
+      if (targetUser.tokensRemaining > 0 && !targetUser.unlimited) {
+        targetUser.tokensRemaining = Math.max(0, targetUser.tokensRemaining - 150);
+      }
+    }
+
     this.save();
     return rec;
   }
 
   public getUserGenerations(userId: string, limit = 50): DbGenerationRecord[] {
-    return this.data.generations.filter((g) => g.userId === userId).slice(0, limit);
+    return (this.data.generations || []).filter((g) => g.userId === userId || g.userEmail === userId).slice(0, limit);
   }
 
   public getAllGenerations(limit = 100): DbGenerationRecord[] {
-    return this.data.generations.slice(0, limit);
+    return (this.data.generations || []).slice(0, limit);
+  }
+
+  public getUserActivity(userIdOrEmail: string): {
+    user: DbUser | null;
+    generations: DbGenerationRecord[];
+    auditLogs: DbAuditLog[];
+  } {
+    const user = this.getUserById(userIdOrEmail) || this.getUserByEmail(userIdOrEmail);
+    const generations = (this.data.generations || []).filter(
+      (g) => (user && (g.userId === user.id || g.userEmail === user.email)) || g.userId === userIdOrEmail
+    );
+    const auditLogs = (this.data.auditLogs || []).filter(
+      (a) => (user && a.actorEmail === user.email) || a.target === userIdOrEmail
+    );
+
+    return {
+      user,
+      generations,
+      auditLogs,
+    };
+  }
+
+  public wipeUserActivity(userIdOrEmail: string): boolean {
+    const user = this.getUserById(userIdOrEmail) || this.getUserByEmail(userIdOrEmail);
+    if (!user) return false;
+
+    this.data.generations = (this.data.generations || []).filter(
+      (g) => g.userId !== user.id && g.userEmail !== user.email
+    );
+    user.toolsUsed = [];
+    user.generationCount = 0;
+    this.save();
+    return true;
+  }
+
+  // --- Backend Logs & Live App Debug Telemetry ---
+  public logBackendEvent(level: 'info' | 'warn' | 'error', endpoint: string, message: string, durationMs?: number): void {
+    if (!this.data.backendLogs) this.data.backendLogs = [];
+    const logItem: DbBackendLog = {
+      id: `blog_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      level,
+      endpoint,
+      message,
+      durationMs,
+    };
+    this.data.backendLogs.unshift(logItem);
+    if (this.data.backendLogs.length > 500) {
+      this.data.backendLogs = this.data.backendLogs.slice(0, 500);
+    }
+    this.save();
+  }
+
+  public getBackendLogs(limit = 150): DbBackendLog[] {
+    return (this.data.backendLogs || []).slice(0, limit);
+  }
+
+  public clearBackendLogs(): void {
+    this.data.backendLogs = [];
+    this.save();
+  }
+
+  // --- Conversations Management & Automated 30-Day Retention Archive ---
+  public saveConversation(conv: DbConversation): void {
+    if (!conv || !conv.id) return;
+    if (!this.data.conversations) this.data.conversations = {};
+    this.data.conversations[conv.id] = {
+      ...conv,
+      updatedAt: conv.updatedAt || new Date().toISOString(),
+      createdAt: conv.createdAt || new Date().toISOString(),
+      status: 'active',
+    };
+    this.save();
+  }
+
+  public syncConversations(userId: string | undefined, userEmail: string | undefined, clientConvs: any[]): { count: number } {
+    if (!Array.isArray(clientConvs)) return { count: 0 };
+    if (!this.data.conversations) this.data.conversations = {};
+    let saved = 0;
+    for (const c of clientConvs) {
+      if (!c || !c.id) continue;
+      this.data.conversations[c.id] = {
+        id: c.id,
+        userId: userId || c.userId,
+        userEmail: userEmail || c.userEmail,
+        title: c.title || 'Untitled Chat',
+        updatedAt: c.updatedAt || new Date().toISOString(),
+        createdAt: c.createdAt || new Date().toISOString(),
+        model: c.model || 'gemini-3.8-flash',
+        thinkingEnabled: Boolean(c.thinkingEnabled),
+        messages: Array.isArray(c.messages) ? c.messages : [],
+        status: 'active',
+      };
+      saved++;
+    }
+    this.save();
+    return { count: saved };
+  }
+
+  public getUserConversations(userId?: string, userEmail?: string): DbConversation[] {
+    const all = Object.values(this.data.conversations || {});
+    if (!userId && !userEmail) {
+      return all.filter((c) => c.status === 'active');
+    }
+    return all.filter((c) => {
+      if (c.status !== 'active') return false;
+      return (userId && c.userId === userId) || (userEmail && c.userEmail === userEmail);
+    });
+  }
+
+  public archiveOldConversations(daysThreshold = 30): { archivedCount: number; purgedGenerations: number; message: string } {
+    const now = Date.now();
+    const thresholdMs = daysThreshold * 24 * 60 * 60 * 1000;
+    let archivedCount = 0;
+
+    const remaining: Record<string, DbConversation> = {};
+    if (!this.data.archivedConversations) {
+      this.data.archivedConversations = [];
+    }
+
+    // Process all active conversations
+    for (const [id, conv] of Object.entries(this.data.conversations || {})) {
+      const convTime = new Date(conv.updatedAt || conv.createdAt || 0).getTime();
+      const ageMs = now - convTime;
+      if (ageMs > thresholdMs) {
+        // Move to archive array
+        this.data.archivedConversations.unshift({
+          ...conv,
+          status: 'archived',
+          archivedAt: new Date().toISOString(),
+        });
+        archivedCount++;
+      } else {
+        remaining[id] = conv;
+      }
+    }
+
+    // Limit archived store size to 1000 items to optimize memory & JSON performance
+    if (this.data.archivedConversations.length > 1000) {
+      this.data.archivedConversations = this.data.archivedConversations.slice(0, 1000);
+    }
+
+    this.data.conversations = remaining;
+
+    // Also purge stale generation telemetry older than 30 days
+    const initialGenCount = (this.data.generations || []).length;
+    this.data.generations = (this.data.generations || []).filter((g) => {
+      const genTime = new Date(g.createdAt || 0).getTime();
+      return now - genTime <= thresholdMs;
+    });
+    const purgedGenerations = initialGenCount - this.data.generations.length;
+
+    this.data.lastArchiveRun = new Date().toISOString();
+
+    if (archivedCount > 0 || purgedGenerations > 0) {
+      this.addAuditLog({
+        actorEmail: 'system-retention-manager',
+        action: 'CLEANUP_OLD_CHATS',
+        status: 'success',
+        details: `Auto-archived ${archivedCount} conversations older than ${daysThreshold} days and purged ${purgedGenerations} stale records.`,
+      });
+      console.log(`[Database Retention Manager] Auto-archived ${archivedCount} conversations older than ${daysThreshold} days.`);
+      this.save();
+    }
+
+    return {
+      archivedCount,
+      purgedGenerations,
+      message: `Checked conversation retention policy: ${archivedCount} chats archived (> ${daysThreshold} days). Storage optimized.`,
+    };
+  }
+
+  public getRetentionStatus() {
+    return {
+      activeConversations: Object.keys(this.data.conversations || {}).length,
+      archivedConversations: (this.data.archivedConversations || []).length,
+      lastArchiveRun: this.data.lastArchiveRun || null,
+      retentionPolicyDays: 30,
+      autoArchiveActive: true,
+    };
   }
 
   // --- Remote Database & Supabase Status ---

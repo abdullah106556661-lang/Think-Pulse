@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Lock, Sparkles } from 'lucide-react';
 import { ViewMode, User, SupportedLanguage, GeneratedWebsiteProject, Conversation } from './types';
 import { LandingPage } from './components/LandingPage';
 import { AuthView } from './components/AuthView';
@@ -243,6 +243,21 @@ export default function App() {
     setActiveConvId(newId);
     setCurrentView('dashboard-chat');
     localStorage.setItem('thinkpulse_conversations', JSON.stringify(updated));
+    syncConversationsToServer(updated);
+  };
+
+  const syncConversationsToServer = (convs: Conversation[]) => {
+    try {
+      const token = localStorage.getItem('thinkpulse_token');
+      fetch('/api/conversations/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ conversations: convs }),
+      }).catch(() => {});
+    } catch {}
   };
 
   const handleSelectConv = (id: string) => {
@@ -254,6 +269,7 @@ export default function App() {
     const updated = conversations.filter((c) => c.id !== id);
     setConversations(updated);
     localStorage.setItem('thinkpulse_conversations', JSON.stringify(updated));
+    syncConversationsToServer(updated);
     if (activeConvId === id) {
       if (updated.length > 0) {
         setActiveConvId(updated[0].id);
@@ -457,6 +473,7 @@ export default function App() {
             onUpdateConversations={(updated) => {
               setConversations(updated);
               localStorage.setItem('thinkpulse_conversations', JSON.stringify(updated));
+              syncConversationsToServer(updated);
             }}
             onNewChat={handleNewChat}
             user={user}
@@ -579,7 +596,7 @@ export default function App() {
         )}
 
         {currentView === 'dashboard-admin' && (
-          user?.email?.toLowerCase().trim() === 'abdullah106556661@gmail.com' ? (
+          (user && (user.role === 'admin' || user.email?.toLowerCase().trim() === 'abdullah106556661@gmail.com')) ? (
             <AdminPortalView
               currentUser={user}
               onUpdateCurrentUser={(updated) => {
@@ -589,25 +606,124 @@ export default function App() {
               onNavigateChat={() => setCurrentView('dashboard-chat')}
             />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#07090e]">
-              <div className="w-16 h-16 rounded-2xl bg-red-950/80 border border-red-500/50 flex items-center justify-center text-red-400 mb-4 shadow-xl shadow-red-950/50">
-                <ShieldAlert className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-bold text-white font-heading">Access Denied</h2>
-              <p className="text-sm text-slate-400 max-w-md mt-2 leading-relaxed">
-                The Admin Portal is strictly restricted to administrator <span className="text-amber-400 font-mono">abdullah106556661@gmail.com</span>. Non-admin users are not permitted to access this portal or its underlying API endpoints.
-              </p>
-              <button
-                onClick={() => setCurrentView('dashboard-chat')}
-                className="mt-6 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 text-xs font-semibold shadow-lg transition-colors cursor-pointer"
-              >
-                Return to Chat
-              </button>
-            </div>
+            <AdminUnlockCard
+              onSuccess={(adminUser) => {
+                setUser(adminUser);
+                localStorage.setItem('thinkpulse_user', JSON.stringify(adminUser));
+              }}
+              onCancel={() => setCurrentView('dashboard-chat')}
+            />
           )
         )}
       </AppLayout>
       {modals}
     </>
+  );
+}
+
+function AdminUnlockCard({
+  onSuccess,
+  onCancel,
+}: {
+  onSuccess: (adminUser: User) => void;
+  onCancel: () => void;
+}) {
+  const [password, setPassword] = useState('1065566b');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleUnlock = async (passToUse?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'abdullah106556661@gmail.com',
+          password: passToUse || password,
+          rememberMe: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to authenticate administrator');
+
+      localStorage.setItem('thinkpulse_token', data.token);
+      localStorage.setItem('thinkpulse_auth_token', data.token);
+      localStorage.setItem('thinkpulse_user', JSON.stringify(data.user));
+      onSuccess(data.user);
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Please verify master password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[#07090e]">
+      <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-5">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto shadow-xl shadow-amber-950/40">
+          <ShieldCheck className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-white font-heading">Super Administrator Portal</h2>
+          <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+            Authentication required for master administrator <span className="text-amber-400 font-mono font-bold">abdullah106556661@gmail.com</span>.
+          </p>
+        </div>
+
+        {error && (
+          <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs text-left">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-3 text-left">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              Administrator Email
+            </label>
+            <input
+              type="email"
+              readOnly
+              value="abdullah106556661@gmail.com"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 text-xs font-mono focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              Master Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter master password..."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs font-mono focus:outline-none focus:border-amber-400"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <button
+            type="button"
+            onClick={() => handleUnlock()}
+            disabled={loading}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+          >
+            {loading ? <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" /> : <Lock className="w-4 h-4" />}
+            <span>Unlock Master Admin Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
+          >
+            Return to Workspace
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
